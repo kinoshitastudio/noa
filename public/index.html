@@ -445,6 +445,27 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .sp-btn:hover{color:var(--ink);background:var(--bg2)}
 .sp-btn.active{color:var(--accent);border-color:var(--accent);background:var(--accent2)}
 .sp-val{font-size:.72rem;color:var(--ink);min-width:22px;text-align:center}
+
+/* ── mobile tab bar & layout ── */
+#mob-tabs{display:none;height:38px;flex-shrink:0;background:var(--bg2);
+  border-bottom:1px solid var(--line)}
+.mob-tab{flex:1;display:flex;align-items:center;justify-content:center;
+  font-size:.55rem;letter-spacing:.16em;color:var(--faint);cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;
+  -webkit-tap-highlight-color:transparent}
+.mob-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+@media(max-width:720px){
+  #mob-tabs{display:flex}
+  #workspace{flex-direction:column}
+  #term-col-bar,#ed-col-bar,#right-col-bar{display:none!important}
+  #main-resize-handle,#right-resize-handle{display:none!important}
+  #term-wrap,#editor-main,#right-pane{
+    display:none!important;flex:none;width:100%!important;min-width:0!important}
+  #term-wrap.mob-active,#editor-main.mob-active,#right-pane.mob-active{
+    display:flex!important;flex:1;min-height:0}
+  #mobkeys{display:flex}
+}
 </style>
 </head>
 <body>
@@ -562,6 +583,13 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     </div>
     <div class="hd-btn" id="btn-preview" style="display:none"></div>
   </header>
+
+  <!-- mobile tab bar -->
+  <div id="mob-tabs">
+    <div class="mob-tab active" data-pane="term">TERM</div>
+    <div class="mob-tab" data-pane="editor">EDITOR</div>
+    <div class="mob-tab" data-pane="files">FILES</div>
+  </div>
 
   <div id="workspace">
 
@@ -2144,6 +2172,34 @@ document.getElementById('sp-efi-btn').addEventListener('click', () => {
 document.getElementById('sp-efd-btn').addEventListener('click', () => {
   setEditorFontSize(-1); const el = document.getElementById('sp-efont-val'); if (el) el.textContent = _editorFontSize;
 });
+
+// ── mobile tab switching ──
+(function(){
+  const tabs = document.getElementById('mob-tabs');
+  if (!tabs) return;
+  const paneMap = {
+    term:   document.getElementById('term-wrap'),
+    editor: document.getElementById('editor-main'),
+    files:  document.getElementById('right-pane')
+  };
+  function switchPane(name) {
+    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.querySelector(`.mob-tab[data-pane="${name}"]`);
+    if (activeTab) activeTab.classList.add('active');
+    Object.entries(paneMap).forEach(([k, el]) => {
+      if (!el) return;
+      el.classList.toggle('mob-active', k === name);
+    });
+    if (name === 'term' && fit) try { fit.fit(); } catch {}
+    if (name === 'editor' && typeof editor !== 'undefined' && editor)
+      setTimeout(() => { try { editor.layout(); } catch {} }, 50);
+  }
+  tabs.addEventListener('click', e => {
+    const tab = e.target.closest('.mob-tab');
+    if (tab) switchPane(tab.dataset.pane);
+  });
+  switchPane('term');
+})();
 </script>
 </body>
 </html>
