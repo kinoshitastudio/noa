@@ -166,6 +166,32 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 #drop-overlay.active{display:flex}
 .xterm,.xterm-viewport,.xterm-screen{height:100%!important}
 
+/* ── task history panel ── */
+#task-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
+  max-height:0;transition:max-height .22s cubic-bezier(.4,0,.2,1);
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent;flex-shrink:0}
+#task-history.open{max-height:160px}
+#task-history::-webkit-scrollbar{width:3px}
+#task-history::-webkit-scrollbar-thumb{background:var(--line2)}
+.th-item{display:flex;align-items:flex-start;gap:6px;padding:.35rem .7rem;
+  border-bottom:1px solid var(--line);font-size:.6rem;letter-spacing:.02em;
+  animation:thSlide .15s ease}
+@keyframes thSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.th-dot{flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-top:3px;
+  background:var(--faint);transition:background var(--trans)}
+.th-dot.running{background:var(--accent);animation:pulse .9s infinite}
+.th-dot.done{background:var(--ok)}
+.th-dot.err{background:var(--danger)}
+.th-cmd{flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:'Space Mono',monospace}
+.th-time{flex-shrink:0;color:var(--faint);font-size:.54rem}
+
+/* ── file editing highlight (watch-dir) ── */
+.ft-item.ft-editing{color:var(--accent)!important;
+  border-left:2px solid var(--accent);animation:ftPulse 1s ease infinite}
+@keyframes ftPulse{0%,100%{border-left-color:var(--accent)}50%{border-left-color:transparent}}
+.ft-item.ft-edited::after{content:' ✓';color:var(--ok);font-size:.6rem}
+
 /* ── voice badge ── */
 #voice-badge{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
   background:rgba(13,13,13,.94);border:1px solid var(--line2);
@@ -395,8 +421,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   display:flex;align-items:center;padding:0 8px;gap:5px;position:sticky;top:0;z-index:5}
 .p-header .ph-label{font-size:.5rem;letter-spacing:.2em;color:var(--faint);
   text-transform:uppercase;font-weight:700}
-/* terminal: canvas must start below the header */
-#term-el{position:absolute;inset:28px 4px 4px 4px!important}
+/* terminal: canvas start position is set dynamically by JS (_updateTermTop) */
+#term-el{position:absolute;inset:28px 4px 4px 4px}
 /* inline preview strip uses same .p-bar style; hidden class controls visibility */
 #eip-col-bar.hidden{display:none!important}
 /* Monaco editor collapse */
@@ -547,7 +573,10 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <div class="p-header">
         <div id="term-col-btn" class="p-colbtn" title="端末を畳む">◀</div>
         <span class="ph-label">TERM</span>
+        <div id="th-toggle-btn" class="p-colbtn" title="タスク履歴" style="margin-left:auto;font-size:.7rem">≡</div>
       </div>
+      <!-- タスク履歴パネル（Conductor風） -->
+      <div id="task-history"></div>
       <div id="term-el"></div>
       <div id="voice-badge"><span id="voice-text"></span><canvas id="voice-wave" width="240" height="44"></canvas><small>Enter で停止/再開 · 無音3秒で自動停止</small></div>
       <div id="drop-overlay">DROP TO SEND @PATH</div>
@@ -868,10 +897,24 @@ function onMsg(msg) {
         if (row) row.classList.add('active'); }
       break;
     case 'file-active':
-      // ディレクトリ再帰 watch: Claude Code が編集中のファイルをツリーでハイライト
-      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+      // Claude Code が編集中のファイルをツリーでハイライト（点滅 → 完了チェック）
       { const row = document.querySelector(`.ft-item[data-path="${msg.path}"]`);
-        if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest' }); } }
+        if (row) {
+          // active ハイライト
+          document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+          row.classList.add('active');
+          row.scrollIntoView({ block: 'nearest' });
+          // 編集中アニメーション
+          row.classList.remove('ft-edited');
+          row.classList.add('ft-editing');
+          clearTimeout(row._editTimer);
+          row._editTimer = setTimeout(() => {
+            row.classList.remove('ft-editing');
+            row.classList.add('ft-edited');
+            setTimeout(() => row.classList.remove('ft-edited'), 3000);
+          }, 2500);
+        }
+      }
       break;
     case 'git-info':
       if (msg.branch) {
@@ -949,7 +992,7 @@ function initTerm() {
 
   term.onData(d => {
     send({ type:'input', data:d });
-    // Enter後にgit情報を更新（cdで変わることがある）
+    _thOnInput(d);
     if (d === '\r' || d === '\n') {
       setTimeout(() => { if (authed) send({ type: 'git-info' }); }, 600);
     }
@@ -968,6 +1011,7 @@ function initTerm() {
   const _origWrite = term.write.bind(term);
   term.write = function(data) {
     const raw = typeof data === 'string' ? data : new TextDecoder().decode(data);
+    _thOnOutput(raw);
 
     // ANSI除去してURLを_knownUrlsに蓄積
     _rawBuf += raw;
@@ -1931,6 +1975,77 @@ if (savedTok) { tokEl.value = savedTok; connect(savedTok); }
 
 // ── PANEL COLLAPSE (Conductor layout) ──
 // Terminal (left)
+// ── タスク履歴パネル ──────────────────────────────────────────────
+const taskHistoryEl = document.getElementById('task-history');
+const thToggleBtn   = document.getElementById('th-toggle-btn');
+let _thOpen = false;
+let _currentCmd = '';
+let _thItems = []; // { cmd, time, status, el }
+
+function _updateTermTop() {
+  const termEl = document.getElementById('term-el');
+  if (!termEl) return;
+  const thH = _thOpen ? taskHistoryEl.scrollHeight : 0;
+  termEl.style.top = (28 + thH) + 'px';
+  if (fit) try { fit.fit(); } catch {}
+}
+
+function _thAddCmd(cmd) {
+  cmd = cmd.trim();
+  if (!cmd) return;
+  const time = new Date().toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const item = document.createElement('div');
+  item.className = 'th-item';
+  item.innerHTML = `<span class="th-dot running"></span><span class="th-cmd">${cmd.replace(/</g,'&lt;')}</span><span class="th-time">${time}</span>`;
+  taskHistoryEl.appendChild(item);
+  taskHistoryEl.scrollTop = taskHistoryEl.scrollHeight;
+  const entry = { cmd, el: item, dot: item.querySelector('.th-dot') };
+  _thItems.push(entry);
+  if (_thItems.length > 20) {
+    _thItems.shift();
+    taskHistoryEl.removeChild(taskHistoryEl.firstChild);
+  }
+  return entry;
+}
+
+function _thDone(entry, ok = true) {
+  if (!entry || !entry.dot) return;
+  entry.dot.classList.remove('running');
+  entry.dot.classList.add(ok ? 'done' : 'err');
+}
+
+// Enter検出: コマンド追加 → プロンプト戻りで完了
+let _currentEntry = null;
+let _cmdBuf = '';
+// term.onData で入力を捕捉（initTerm後にセット）
+function _thOnInput(d) {
+  if (d === '\r' || d === '\n') {
+    if (_cmdBuf.trim()) {
+      _currentEntry = _thAddCmd(_cmdBuf);
+      if (_thOpen) _updateTermTop();
+    }
+    _cmdBuf = '';
+  } else if (d === '\x7f') { // backspace
+    _cmdBuf = _cmdBuf.slice(0, -1);
+  } else if (d.length === 1 && d >= ' ') {
+    _cmdBuf += d;
+  }
+}
+// 出力にプロンプト文字列が現れたら完了とみなす
+function _thOnOutput(data) {
+  if (_currentEntry && /[%$#>]\s*$/.test(data.replace(/\x1b\[[^m]*m/g, ''))) {
+    setTimeout(() => _thDone(_currentEntry, true), 200);
+    _currentEntry = null;
+  }
+}
+
+thToggleBtn.addEventListener('click', () => {
+  _thOpen = !_thOpen;
+  taskHistoryEl.classList.toggle('open', _thOpen);
+  thToggleBtn.style.color = _thOpen ? 'var(--accent)' : '';
+  setTimeout(_updateTermTop, 230); // transition完了後にrefit
+});
+
 function collapseTerminal(col) {
   document.getElementById('term-wrap').classList.toggle('p-col', col);
   document.getElementById('term-col-bar').classList.toggle('show', col);
