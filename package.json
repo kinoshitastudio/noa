@@ -1,0 +1,25 @@
+{
+  "name": "@kinoshitastudio/noa",
+  "version": "0.1.0",
+  "description": "Web terminal — access your Mac from anywhere via browser",
+  "main": "server.js",
+  "bin": {
+    "noa": "./bin/noa.js"
+  },
+  "scripts": {
+    "postinstall": "cd node_modules/node-pty && npx node-gyp rebuild",
+    "start": "node bin/noa.js",
+    "dev": "NOA_TOKEN=dev node server.js"
+  },
+  "keywords": ["terminal", "web", "mac", "remote"],
+  "author": "kinoshita studio",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.17.0"
+  }
+}

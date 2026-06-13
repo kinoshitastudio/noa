@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Noa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  /* macOS dark system colors */
+  --bg:#1c1c1e; --bg2:#2c2c2e; --bg3:#3a3a3c;
+  --bg-glass:rgba(28,28,30,0.75);
+  --line:rgba(255,255,255,0.08); --line2:rgba(255,255,255,0.14);
+  --ink:#f2f2f7; --dim:rgba(242,242,247,0.55); --faint:rgba(242,242,247,0.25);
+  --accent:#e8e020; --accent2:rgba(232,224,32,0.12);
+  --danger:#ff453a; --ok:#30d158;
+  --h:44px;
+  --radius:8px; --radius-sm:5px;
+  --blur:blur(20px) saturate(180%);
+  --shadow:0 2px 16px rgba(0,0,0,.45);
+  --shadow-sm:0 1px 6px rgba(0,0,0,.35);
+  --trans:.18s cubic-bezier(.4,0,.2,1);
+}
+body.light{
+  --bg:#f5f5f7; --bg2:#ffffff; --bg3:#e5e5ea;
+  --bg-glass:rgba(245,245,247,0.78);
+  --line:rgba(0,0,0,0.07); --line2:rgba(0,0,0,0.13);
+  --ink:#1d1d1f; --dim:rgba(29,29,31,0.55); --faint:rgba(29,29,31,0.25);
+  --accent:#7a6e00; --accent2:rgba(122,110,0,0.1);
+  --danger:#ff3b30; --ok:#34c759;
+}
+body.gameboy{
+  --bg:#0f380f; --bg2:#1e521e; --bg3:#306230;
+  --bg-glass:rgba(15,56,15,0.82);
+  --line:rgba(155,188,15,.14); --line2:rgba(155,188,15,.26);
+  --ink:#9bbc0f; --dim:rgba(155,188,15,.6); --faint:rgba(155,188,15,.3);
+  --accent:#9bbc0f; --accent2:rgba(155,188,15,0.12);
+  --danger:#ff6000; --ok:#9bbc0f;
+  --radius:2px; --radius-sm:1px;
+}
+body.gameboy *{letter-spacing:.04em}
+body.op1{
+  --bg:#f2f1ef; --bg2:#e8e7e5; --bg3:#d5d4d1;
+  --bg-glass:rgba(242,241,239,0.82);
+  --line:rgba(0,0,0,.07); --line2:rgba(0,0,0,.14);
+  --ink:#1a1918; --dim:rgba(26,25,24,.55); --faint:rgba(26,25,24,.28);
+  --accent:#ff6b35; --accent2:rgba(255,107,53,0.1);
+  --danger:#e02020; --ok:#4caf50;
+}
+html,body{height:100%;height:100dvh;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'Space Mono',monospace;
+  overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none}
+
+/* ── auth / welcome ── */
+#auth{position:fixed;inset:0;z-index:1000;background:var(--bg);
+  display:flex;overflow-y:auto}
+#auth.gone{display:none}
+
+/* 2カラム: 左=紹介, 右=フォーム */
+.auth-left{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;
+  padding:3rem 3.5rem;border-right:1px solid var(--line)}
+.auth-right{width:min(360px,90vw);flex-shrink:0;display:flex;flex-direction:column;
+  justify-content:center;padding:3rem 2.5rem;gap:1.4rem}
+
+/* モバイル: 縦積み */
+@media(max-width:720px){
+  #auth{flex-direction:column}
+  .auth-left{border-right:none;border-bottom:1px solid var(--line);padding:2rem 1.5rem}
+  .auth-right{width:100%;padding:2rem 1.5rem}
+}
+
+.auth-logo{font-size:2rem;font-weight:700;letter-spacing:.5em;margin-bottom:.5rem}
+.auth-logo em{color:var(--accent);font-style:normal}
+.auth-tagline{font-size:.75rem;letter-spacing:.16em;color:var(--dim);margin-bottom:2rem}
+
+/* プレビュー画像 */
+.auth-preview{width:100%;border:1px solid var(--line);overflow:hidden;
+  background:var(--bg2);position:relative}
+.auth-preview img{width:100%;display:block;opacity:.88}
+.auth-preview-label{position:absolute;bottom:0;left:0;right:0;
+  padding:.35rem .7rem;font-size:.58rem;letter-spacing:.14em;color:var(--faint);
+  background:linear-gradient(transparent,rgba(13,13,13,.7))}
+
+/* セットアップガイド */
+.auth-setup-toggle{display:flex;align-items:center;gap:.6rem;cursor:pointer;
+  font-size:.65rem;letter-spacing:.16em;color:var(--dim);margin-bottom:.4rem;
+  user-select:none;transition:color .12s}
+.auth-setup-toggle:hover{color:var(--ink)}
+.auth-setup-toggle .ast-arrow{font-size:.55rem;transition:transform .2s}
+.auth-setup-toggle.open .ast-arrow{transform:rotate(90deg)}
+.auth-setup{display:none;border:1px solid var(--line);padding:1rem 1.2rem;
+  background:var(--bg2);flex-direction:column;gap:.8rem}
+.auth-setup.show{display:flex}
+.auth-step{display:flex;gap:.8rem;align-items:flex-start}
+.auth-step-num{color:var(--accent);font-size:.62rem;flex-shrink:0;padding-top:.12rem}
+.auth-step-body{flex:1;min-width:0}
+.auth-step-label{font-size:.6rem;letter-spacing:.14em;color:var(--dim);margin-bottom:.3rem}
+.auth-step-code{background:var(--bg);border:1px solid var(--line);
+  padding:.45rem .7rem;font-size:.68rem;color:var(--ink);letter-spacing:.02em;
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  overflow-x:auto;white-space:nowrap}
+.auth-copy-btn{flex-shrink:0;background:none;border:1px solid var(--line2);
+  color:var(--faint);font-family:'Space Mono',monospace;font-size:.55rem;
+  letter-spacing:.1em;padding:.2rem .45rem;cursor:pointer;transition:color .1s,border-color .1s}
+.auth-copy-btn:hover{color:var(--ink);border-color:var(--line2)}
+.auth-copy-btn.copied{color:var(--ok);border-color:var(--ok)}
+
+/* フォーム */
+.auth-lbl{font-size:.62rem;letter-spacing:.18em;color:var(--dim)}
+.auth-inp{background:var(--bg2);border:1px solid var(--line2);color:var(--ink);
+  font-family:'Space Mono',monospace;font-size:.9rem;padding:.65rem .9rem;outline:none;
+  transition:border-color .15s;width:100%}
+.auth-inp:focus{border-color:rgba(255,255,255,0.3)}
+.auth-btn{background:var(--ink);color:var(--bg);font-family:'Space Mono',monospace;
+  font-size:.8rem;font-weight:700;letter-spacing:.2em;padding:.7rem;border:none;cursor:pointer;
+  transition:opacity .15s;width:100%}
+.auth-btn:hover{opacity:.82}
+.auth-err{font-size:.72rem;letter-spacing:.1em;color:var(--danger);min-height:1em}
+
+/* ── shell ── */
+#shell{height:100%;display:flex;flex-direction:column}
+#shell.gone{display:none}
+
+/* ── header / toolbar ── */
+header{height:var(--h);flex-shrink:0;display:flex;align-items:center;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border-bottom:1px solid var(--line);z-index:50;gap:4px;padding:0 6px}
+.logo{padding:0 10px;font-size:.85rem;font-weight:700;letter-spacing:.38em;
+  height:100%;display:flex;align-items:center;flex-shrink:0;font-family:'Space Mono',monospace}
+.logo em{color:var(--accent);font-style:normal}
+
+#sess-label{flex:1;padding:0 .6rem;font-size:.72rem;color:var(--dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Space Mono',monospace}
+
+/* Toolbar button groups */
+.hd-group{display:flex;align-items:center;gap:1px;
+  background:var(--bg3);border-radius:var(--radius-sm);padding:2px;flex-shrink:0}
+.hd-btn{display:flex;align-items:center;justify-content:center;
+  width:32px;height:28px;flex-shrink:0;cursor:pointer;color:var(--dim);
+  border-radius:4px;transition:color var(--trans),background var(--trans)}
+.hd-btn:hover{color:var(--ink);background:rgba(255,255,255,.1)}
+body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
+.hd-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hd-btn.active{color:var(--accent)}
+.hd-btn.mic-on{color:var(--danger);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── workspace (3-column: term | editor | right) ── */
+#workspace{flex:1;display:flex;overflow:hidden}
+
+/* ── terminal (LEFT column) ── */
+#term-wrap{width:280px;flex-shrink:0;overflow:hidden;position:relative;
+  border-right:1px solid var(--line)}
+#term-wrap.p-col{width:0!important;border:none!important;min-width:0;overflow:hidden}
+/* #term-el inset is overridden in panel collapse section (28px top for header) */
+#drop-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(14,14,12,.85);border:2px dashed var(--accent);z-index:50;pointer-events:none;
+  font-size:.8rem;letter-spacing:.12em;color:var(--accent)}
+#drop-overlay.active{display:flex}
+.xterm,.xterm-viewport,.xterm-screen{height:100%!important}
+
+/* ── voice badge ── */
+#voice-badge{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  background:rgba(13,13,13,.94);border:1px solid var(--line2);
+  padding:.6rem 1.4rem .5rem;font-size:.85rem;letter-spacing:.04em;color:#ccc;
+  pointer-events:none;min-width:260px;text-align:center;display:none;z-index:20;
+  border-radius:4px}
+#voice-badge.show{display:block}
+#voice-badge canvas{display:block;margin:.4rem auto 0}
+#voice-badge small{display:block;margin-top:.3rem;font-size:.6rem;color:var(--dim);opacity:.7}
+
+/* ── right pane (file tree top + preview bottom) ── */
+#right-pane{width:280px;flex-shrink:0;display:flex;flex-direction:column;
+  overflow:hidden;border-left:1px solid var(--line)}
+#right-pane.p-col{width:0!important;border:none!important;min-width:0;overflow:hidden}
+/* horizontal split handle inside right pane */
+#right-split-handle{height:1px;flex-shrink:0;cursor:row-resize;
+  background:var(--line);position:relative;z-index:10;
+  transition:background var(--trans),height var(--trans)}
+#right-split-handle::after{content:'';position:absolute;inset:-5px 0;cursor:row-resize}
+#right-split-handle:hover,#right-split-handle.dragging{background:var(--accent);height:2px}
+/* preview inside right pane */
+#preview-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+/* collapsed: bar stays visible, only stage hides — user always knows it's here */
+#preview-pane.p-col{flex:none}
+#preview-pane.p-col #preview-stage{display:none!important}
+#preview-pane.p-col .preview-bar{
+  border-top:1px solid var(--line2);
+  opacity:.7;
+  cursor:pointer}
+#preview-pane.p-col .preview-bar:hover{opacity:1;background:var(--bg3)}
+
+/* settings overlay modal – frosted glass sheet */
+#settings-overlay{position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:none;align-items:flex-start;justify-content:flex-end;padding-top:var(--h);
+  animation:fadeIn .15s ease}
+#settings-overlay.show{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#settings-modal{width:min(300px,90vw);max-height:calc(100vh - var(--h));
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border-left:1px solid var(--line2);border-bottom:1px solid var(--line2);
+  box-shadow:var(--shadow);overflow-y:auto;display:flex;flex-direction:column;
+  animation:slideIn .2s cubic-bezier(.4,0,.2,1)}
+@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+
+/* preview bar */
+.preview-bar{height:var(--h);flex-shrink:0;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.preview-url{flex:1;background:var(--bg);border:none;border-right:1px solid var(--line);
+  color:var(--ink);font-family:'Space Mono',monospace;font-size:.7rem;
+  padding:0 .8rem;height:100%;outline:none;letter-spacing:.04em}
+.preview-url::placeholder{color:var(--faint)}
+.preview-btn{min-width:var(--h);height:100%;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--faint);border-right:1px solid var(--line);
+  transition:color .1s,background .1s;font-size:.8rem;padding:0 .4rem}
+.preview-btn:hover{color:var(--ink);background:var(--bg3)}
+.view-btn.active{background:var(--bg3);color:var(--ink)}
+#preview-stage{flex:1;position:relative;overflow:auto;background:#1a1a1a;
+  display:flex;align-items:flex-start;justify-content:center}
+#preview-frame-wrap{position:relative;background:#fff;transform-origin:top center}
+#preview-frame-wrap.pc{width:100%;height:100%}
+#preview-iframe{display:block;border:none;width:100%;height:100%}
+#preview-loading{display:none;position:absolute;inset:0;align-items:center;
+  justify-content:center;background:rgba(13,13,13,.7);font-size:.75rem;
+  letter-spacing:.2em;color:var(--dim);z-index:5}
+#preview-loading.show{display:flex}
+
+/* ── status bar ── */
+#statusbar{height:22px;flex-shrink:0;border-top:1px solid var(--line);
+  display:flex;align-items:center;padding:0 .9rem;gap:1.4rem;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.sb{font-size:.62rem;letter-spacing:.08em;color:var(--dim);display:flex;align-items:center}
+.sb span{color:var(--ink)}
+.sb-git{gap:.3rem}
+.sb-git .git-branch{color:var(--ink)}
+.sb-git .git-dirty{color:var(--accent);font-size:.58rem}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--faint);
+  display:inline-block;margin-right:.4rem;vertical-align:middle;
+  transition:background var(--trans)}
+.dot.on{background:var(--ok);box-shadow:0 0 4px var(--ok)}
+
+/* ── mobile key bar ── */
+#mobkeys{display:none;height:42px;flex-shrink:0;border-top:1px solid var(--line);
+  background:var(--bg2);align-items:center;overflow-x:auto;gap:1px;
+  scrollbar-width:none;padding:0 2px}
+#mobkeys::-webkit-scrollbar{display:none}
+@media(pointer:coarse){#mobkeys{display:flex}}
+.mk{height:34px;min-width:38px;padding:0 .55rem;flex-shrink:0;
+  background:var(--bg3);border:1px solid var(--line2);color:var(--ink);
+  font-family:'Space Mono',monospace;font-size:.75rem;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.mk:active{background:rgba(255,255,255,.1)}
+.mk.w{min-width:58px}
+
+/* ── resize handles ── */
+#main-resize-handle,#right-resize-handle{flex-shrink:0;cursor:col-resize;
+  background:var(--line);position:relative;z-index:10;width:1px;
+  transition:background var(--trans),width var(--trans)}
+#main-resize-handle::after{content:'';position:absolute;inset:0 -5px;cursor:col-resize}
+#right-resize-handle::after{content:'';position:absolute;inset:0 -5px;cursor:col-resize}
+#main-resize-handle:hover,#main-resize-handle.dragging,
+#right-resize-handle:hover,#right-resize-handle.dragging{
+  background:var(--accent);width:2px}
+/* legacy compat (inline preview inner resize) */
+#resize-handle{display:none}
+#ft-resize-handle{display:none}
+
+/* ── panel tabs (preview / editor) ── */
+.panel-tab-bar{height:var(--h);flex-shrink:0;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;background:var(--bg2)}
+.ptab{padding:0 1.1rem;height:100%;display:flex;align-items:center;
+  font-size:.65rem;letter-spacing:.15em;color:var(--dim);cursor:pointer;
+  border-right:1px solid var(--line);transition:color .1s,background .1s;white-space:nowrap}
+.ptab:hover{color:var(--ink);background:var(--bg3)}
+.ptab.active{color:var(--accent);background:var(--bg)}
+#view-btns{margin-left:auto;display:flex}
+
+#preview-view{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#preview-view.hidden,#editor-view.hidden{display:none!important}
+#editor-view{flex:1;display:flex;overflow:hidden;min-height:0}
+
+/* ── file tree – macOS Finder sidebar style ── */
+#ft-wrap{flex:1;min-height:40px;border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;overflow:hidden}
+/* collapsed: p-header stays, file-tree hides */
+#ft-wrap.p-col{flex:none;border:none!important}
+#ft-wrap.p-col #file-tree{display:none!important}
+#ft-wrap.p-col .p-header{opacity:.7;cursor:pointer;border-bottom:1px solid var(--line2)}
+#ft-wrap.p-col .p-header:hover{opacity:1;background:var(--bg3)}
+#file-tree{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg);
+  font-size:.72rem;letter-spacing:.02em;padding:4px 0;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#file-tree::-webkit-scrollbar{width:4px}
+#file-tree::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+.ft-item{display:flex;align-items:center;padding:.28rem .5rem .28rem 0;
+  cursor:pointer;color:var(--dim);white-space:nowrap;overflow:hidden;
+  transition:color var(--trans),background var(--trans);user-select:none;
+  gap:2px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-right:4px}
+.ft-item:hover{color:var(--ink);background:var(--bg3)}
+.ft-item.active{color:var(--accent);background:var(--accent2);
+  font-weight:600}
+.ft-item.cwd-active{color:var(--accent);background:var(--accent2);
+  font-weight:700;border-left:2px solid var(--accent)}
+.ft-chevron{width:14px;flex-shrink:0;text-align:center;font-size:.6rem;
+  color:var(--faint);transition:transform var(--trans)}
+.ft-chevron.open{transform:rotate(90deg)}
+.ft-icon{width:16px;flex-shrink:0;text-align:center;font-size:.72rem}
+.ft-name{overflow:hidden;text-overflow:ellipsis;flex:1}
+.ft-cc-btn{flex-shrink:0;display:none;background:none;border:none;
+  color:var(--faint);font-size:.62rem;padding:0 3px;cursor:pointer;
+  letter-spacing:0;line-height:1;font-family:inherit;
+  border-radius:3px;transition:color var(--trans),background var(--trans)}
+.ft-item:hover .ft-cc-btn{display:block}
+.ft-cc-btn:hover{color:var(--accent);background:var(--accent2)}
+.ft-children{display:none}
+.ft-children.open{display:block}
+
+/* ── monaco editor ── */
+#editor-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-toolbar{height:var(--h);flex-shrink:0;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  padding:0 .8rem;gap:.6rem;overflow:hidden}
+#editor-filepath{flex:1;font-size:.68rem;letter-spacing:.05em;color:var(--dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#editor-filepath.editor-unsaved::before{content:'● ';color:var(--accent)}
+.etbtn{flex-shrink:0;padding:.2rem .5rem;background:var(--bg3);
+  border:1px solid var(--line);color:var(--dim);font-family:'Space Mono',monospace;
+  font-size:.6rem;letter-spacing:.08em;cursor:pointer;border-radius:var(--radius-sm);
+  transition:color var(--trans),border-color var(--trans),background var(--trans)}
+.etbtn:hover{color:var(--ink);border-color:var(--line2);background:var(--bg2)}
+#editor-save-btn.saved{color:var(--ok)!important;border-color:var(--ok)!important}
+#editor-fullscreen-btn{font-size:.88rem;letter-spacing:0;padding:.2rem .5rem}
+#editor-fullscreen-btn.active{color:var(--accent);border-color:var(--accent)}
+#monaco-wrap{flex:1;overflow:hidden;min-height:0}
+#monaco-wrap.hidden{display:none!important}
+#editor-image-view{flex:1;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:#111;min-height:0;position:relative}
+#editor-image-view.hidden{display:none!important}
+#editor-image-view.pad{padding:1rem;overflow:auto}
+#editor-media-img{max-width:100%;max-height:100%;object-fit:contain}
+#editor-media-video{max-width:100%;max-height:100%}
+#editor-media-audio{width:80%;max-width:500px}
+#editor-media-iframe{position:absolute;inset:0;width:100%;height:100%;border:none;background:#fff}
+
+/* ── editor inline preview ── */
+#editor-inline-resize{width:4px;flex-shrink:0;cursor:col-resize;background:transparent;
+  position:relative;z-index:5;transition:background .1s}
+#editor-inline-resize::after{content:'';position:absolute;inset:0 -3px;cursor:col-resize}
+#editor-inline-resize:hover,#editor-inline-resize.dragging{background:rgba(232,224,32,.25)}
+#editor-inline-resize.hidden,#editor-inline-preview.hidden{display:none!important}
+#editor-inline-preview{width:40%;flex-shrink:0;display:flex;flex-direction:column;
+  overflow:hidden;min-height:0;border-left:1px solid var(--line)}
+.eip-bar{height:var(--h);flex-shrink:0;display:flex;align-items:center;
+  background:var(--bg2);border-bottom:1px solid var(--line)}
+#eip-url{flex:1;background:var(--bg);border:none;border-right:1px solid var(--line);
+  color:var(--ink);font-family:'Space Mono',monospace;font-size:.7rem;
+  padding:0 .8rem;height:100%;outline:none;letter-spacing:.04em}
+#eip-url::placeholder{color:var(--faint)}
+#eip-reload{min-width:var(--h);height:100%;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;color:var(--faint);font-size:.9rem;
+  transition:color .1s,background .1s}
+#eip-reload:hover{color:var(--ink);background:var(--bg3)}
+#eip-iframe{flex:1;border:none;display:block;background:#fff;min-height:0}
+
+/* ── collapsible panel strips ── */
+.p-colbtn{flex-shrink:0;cursor:pointer;color:var(--faint);font-size:.62rem;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:2px;transition:color .1s,background .1s;user-select:none;z-index:20}
+.p-colbtn:hover{color:var(--ink);background:var(--bg3)}
+/* vertical collapsed strip */
+.p-bar{flex-shrink:0;width:22px;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  cursor:pointer;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;transition:background var(--trans);
+  border-right:1px solid var(--line);border-left:1px solid var(--line)}
+.p-bar:hover{background:var(--bg3)}
+.p-bar.show{display:flex}
+.p-bar span{writing-mode:vertical-lr;transform:rotate(180deg);
+  font-size:.46rem;letter-spacing:.24em;color:var(--faint);user-select:none;font-weight:700}
+/* panel headers – macOS section header style */
+.p-header{height:28px;flex-shrink:0;
+  background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 8px;gap:5px;position:sticky;top:0;z-index:5}
+.p-header .ph-label{font-size:.5rem;letter-spacing:.2em;color:var(--faint);
+  text-transform:uppercase;font-weight:700}
+/* terminal: canvas must start below the header */
+#term-el{position:absolute;inset:28px 4px 4px 4px!important}
+/* inline preview strip uses same .p-bar style; hidden class controls visibility */
+#eip-col-bar.hidden{display:none!important}
+/* Monaco editor collapse */
+#editor-main.p-col{width:0!important;overflow:hidden!important;flex:none!important;min-width:0}
+#ed-col-bar{display:none}
+#ed-col-bar.show{display:flex}
+/* panel-tab-bar / activity-bar: removed in Conductor layout */
+.panel-tab-bar{display:none!important}
+#btn-preview{display:none!important}
+/* ── settings panel ── */
+#sp-settings{display:flex;flex-direction:column;overflow-y:auto;background:transparent}
+.sp-section{padding:.9rem 1rem;border-bottom:1px solid var(--line)}
+.sp-label{font-size:.52rem;letter-spacing:.2em;color:var(--faint);margin-bottom:.7rem;
+  text-transform:uppercase;font-weight:700}
+.sp-row{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.sp-btn{padding:.25rem .52rem;background:var(--bg3);border:1px solid var(--line);
+  color:var(--dim);font-family:'Space Mono',monospace;font-size:.6rem;
+  letter-spacing:.08em;cursor:pointer;border-radius:var(--radius-sm);
+  transition:color var(--trans),border-color var(--trans),background var(--trans)}
+.sp-btn:hover{color:var(--ink);background:var(--bg2)}
+.sp-btn.active{color:var(--accent);border-color:var(--accent);background:var(--accent2)}
+.sp-val{font-size:.72rem;color:var(--ink);min-width:22px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- AUTH / WELCOME -->
+<div id="auth">
+
+  <!-- LEFT: 紹介 + プレビュー -->
+  <div class="auth-left">
+    <div class="auth-logo">N<em>O</em>A</div>
+    <div class="auth-tagline">WEB TERMINAL FOR YOUR MAC</div>
+
+    <div class="auth-preview">
+      <img id="auth-preview-img" src="noa-preview.jpg" alt="Noa interface" onerror="this.closest('.auth-preview').style.display='none'">
+      <div class="auth-preview-label">Terminal · Editor · File tree · Preview</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: セットアップ + ログイン -->
+  <div class="auth-right">
+
+    <div>
+      <div class="auth-setup-toggle" id="setup-toggle">
+        <span class="ast-arrow">▶</span>
+        <span>QUICK SETUP</span>
+      </div>
+      <div class="auth-setup" id="auth-setup">
+        <div class="auth-step">
+          <span class="auth-step-num">01</span>
+          <div class="auth-step-body">
+            <div class="auth-step-label">CLONE</div>
+            <div class="auth-step-code">
+              <span>git clone https://github.com/99letters/noa</span>
+              <button class="auth-copy-btn" data-copy="git clone https://github.com/99letters/noa">COPY</button>
+            </div>
+          </div>
+        </div>
+        <div class="auth-step">
+          <span class="auth-step-num">02</span>
+          <div class="auth-step-body">
+            <div class="auth-step-label">INSTALL</div>
+            <div class="auth-step-code">
+              <span>cd noa &amp;&amp; npm install</span>
+              <button class="auth-copy-btn" data-copy="cd noa && npm install">COPY</button>
+            </div>
+          </div>
+        </div>
+        <div class="auth-step">
+          <span class="auth-step-num">03</span>
+          <div class="auth-step-body">
+            <div class="auth-step-label">START</div>
+            <div class="auth-step-code">
+              <span>NOA_TOKEN=yourtoken node server.js</span>
+              <button class="auth-copy-btn" data-copy="NOA_TOKEN=yourtoken node server.js">COPY</button>
+            </div>
+          </div>
+        </div>
+        <div class="auth-step">
+          <span class="auth-step-num">04</span>
+          <div class="auth-step-body">
+            <div class="auth-step-label">OPEN</div>
+            <div class="auth-step-code">
+              <span>http://localhost:2797/?token=yourtoken</span>
+              <button class="auth-copy-btn" data-copy="http://localhost:2797/?token=yourtoken">COPY</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:.7rem">
+      <div class="auth-lbl">— ACCESS TOKEN</div>
+      <input id="tok" class="auth-inp" type="password" placeholder="paste your token" autocomplete="off" spellcheck="false">
+      <div id="auth-err" class="auth-err"></div>
+      <button id="auth-btn" class="auth-btn">CONNECT</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div id="shell" class="gone">
+  <header>
+    <div class="logo">N<em>O</em>A</div>
+    <div id="sess-label">—</div>
+
+    <!-- グループ1: セッション -->
+    <div class="hd-group">
+      <div class="hd-btn" id="btn-new" title="New session (⌘T)">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </div>
+
+    <!-- グループ2: フォント + マイク -->
+    <div class="hd-group">
+      <div class="hd-btn" id="btn-fd" title="Font −">
+        <svg viewBox="0 0 24 24"><text x="4" y="17" font-size="10" fill="currentColor" stroke="none" font-family="monospace">A</text></svg>
+      </div>
+      <div class="hd-btn" id="btn-fi" title="Font +">
+        <svg viewBox="0 0 24 24"><text x="3" y="17" font-size="15" fill="currentColor" stroke="none" font-family="monospace">A</text></svg>
+      </div>
+      <div class="hd-btn" id="btn-mic" title="Voice input (⌘M)">
+        <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+      </div>
+    </div>
+
+    <!-- グループ3: テーマ + 設定 -->
+    <div class="hd-group">
+      <div class="hd-btn" id="btn-theme" title="Theme">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </div>
+      <div class="hd-btn" id="btn-settings" title="Settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+    </div>
+    <div class="hd-btn" id="btn-preview" style="display:none"></div>
+  </header>
+
+  <div id="workspace">
+
+    <!-- TERM col-bar: visible when terminal is collapsed -->
+    <div id="term-col-bar" class="p-bar" title="端末を展開"><span>TERM</span></div>
+
+    <!-- LEFT: Terminal pane -->
+    <div id="term-wrap">
+      <div class="p-header">
+        <div id="term-col-btn" class="p-colbtn" title="端末を畳む">◀</div>
+        <span class="ph-label">TERM</span>
+      </div>
+      <div id="term-el"></div>
+      <div id="voice-badge"><span id="voice-text"></span><canvas id="voice-wave" width="240" height="44"></canvas><small>Enter で停止/再開 · 無音3秒で自動停止</small></div>
+      <div id="drop-overlay">DROP TO SEND @PATH</div>
+    </div>
+
+    <!-- HANDLE: terminal | editor -->
+    <div id="main-resize-handle"></div>
+
+    <!-- EDITOR col-bar: visible when editor is collapsed -->
+    <div id="ed-col-bar" class="p-bar" title="エディターを展開"><span>EDITOR</span></div>
+
+    <!-- CENTER: Monaco Editor -->
+    <div id="editor-main">
+      <div class="editor-toolbar">
+        <div class="p-colbtn" id="ed-col-btn" title="エディターを畳む">◀</div>
+        <span id="editor-filepath">— no file open —</span>
+        <button class="etbtn" id="editor-fd-btn" title="フォント縮小">A−</button>
+        <button class="etbtn" id="editor-fi-btn" title="フォント拡大">A+</button>
+        <button class="etbtn" id="editor-copy-path-btn" title="パスをターミナルに送る">⎘ PATH</button>
+        <button class="etbtn" id="editor-save-btn">SAVE</button>
+        <button class="etbtn" id="editor-fullscreen-btn" title="全画面 (⌘⇧F)">⤢</button>
+      </div>
+      <div id="monaco-wrap"></div>
+      <div id="editor-image-view" class="hidden">
+        <img    id="editor-media-img"   alt=""  style="display:none;max-width:100%;max-height:100%;object-fit:contain">
+        <video  id="editor-media-video" controls style="display:none;max-width:100%;max-height:100%"></video>
+        <audio  id="editor-media-audio" controls style="display:none;width:80%;max-width:500px"></audio>
+        <iframe id="editor-media-iframe" style="display:none;width:100%;height:100%;border:none;background:#fff"></iframe>
+      </div>
+    </div>
+
+    <!-- HANDLE: editor | right pane -->
+    <div id="right-resize-handle"></div>
+
+    <!-- RIGHT col-bar: visible when right pane is collapsed -->
+    <div id="right-col-bar" class="p-bar" title="パネルを展開"><span>FILES</span></div>
+
+    <!-- RIGHT pane: file tree (top) + preview (bottom) -->
+    <div id="right-pane">
+
+      <!-- File tree: top half -->
+      <div id="ft-wrap">
+        <div class="p-header">
+          <div id="ft-col-btn" class="p-colbtn" title="ツリーを折り畳む">▲</div>
+          <span class="ph-label">FILES</span>
+        </div>
+        <div id="file-tree"></div>
+      </div>
+
+      <!-- Horizontal split handle -->
+      <div id="right-split-handle"></div>
+
+      <!-- Preview: bottom half -->
+      <div id="preview-pane">
+        <div class="preview-bar">
+          <div class="p-colbtn" id="preview-col-btn" title="プレビューを折り畳む" style="margin:0 4px">▼</div>
+          <input id="preview-url" class="preview-url" type="text" placeholder="http://localhost:3000">
+          <div class="preview-btn" id="preview-reload" title="Reload">↺</div>
+          <div class="preview-btn" id="preview-open" title="Open in new tab">↗</div>
+          <div style="display:flex;margin-left:auto">
+            <div class="preview-btn view-btn active" id="view-pc" title="Desktop">🖥</div>
+            <div class="preview-btn view-btn" id="view-sp" title="Mobile 375px">📱</div>
+            <div class="preview-btn view-btn" id="view-tab" title="Tablet 768px">⬜</div>
+          </div>
+        </div>
+        <div id="preview-stage">
+          <div id="preview-frame-wrap" class="pc">
+            <iframe id="preview-iframe" src="about:blank"></iframe>
+          </div>
+          <div id="preview-loading">LOADING…</div>
+        </div>
+      </div>
+
+    </div><!-- #right-pane -->
+
+    <!-- Compatibility stubs (referenced by legacy JS) -->
+    <div id="preview-wrap" style="display:none"></div>
+    <div id="preview-view" style="display:none"></div>
+    <div id="editor-view"  style="display:none"></div>
+    <div id="resize-handle" style="display:none"></div>
+    <div id="ft-resize-handle" style="display:none"></div>
+    <div id="eip-col-bar" style="display:none"></div>
+    <div id="editor-inline-resize" style="display:none"></div>
+    <div id="editor-inline-preview" style="display:none">
+      <input id="eip-url" type="hidden">
+      <div id="eip-reload"></div>
+      <iframe id="eip-iframe" src="about:blank" style="display:none"></iframe>
+    </div>
+    <!-- tab stubs -->
+    <div style="display:none"><div id="tab-preview"></div><div id="tab-editor"></div><div id="view-btns"></div><div id="pw-col-btn"></div><div id="pw-col-bar"></div><div id="ft-col-bar"></div><div id="editor-preview-btn"></div></div>
+
+  </div><!-- #workspace -->
+
+  <!-- Settings overlay modal (toggled by header ⚙ button) -->
+  <div id="settings-overlay">
+    <div id="sp-settings">
+      <div class="sp-section" style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem">
+        <span class="ph-label">SETTINGS</span>
+        <div class="p-colbtn" id="settings-close-btn" title="閉じる">✕</div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-label">TERMINAL FONT</div>
+        <div class="sp-row">
+          <button class="sp-btn" id="sp-fd-btn">A−</button>
+          <span class="sp-val" id="sp-font-val">14</span>
+          <button class="sp-btn" id="sp-fi-btn">A+</button>
+        </div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-label">EDITOR FONT</div>
+        <div class="sp-row">
+          <button class="sp-btn" id="sp-efd-btn">A−</button>
+          <span class="sp-val" id="sp-efont-val">13</span>
+          <button class="sp-btn" id="sp-efi-btn">A+</button>
+        </div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-label">THEME</div>
+        <div class="sp-row" style="flex-wrap:wrap;gap:4px">
+          <button class="sp-btn sp-theme-sel" data-theme="dark">DARK</button>
+          <button class="sp-btn sp-theme-sel" data-theme="light">LIGHT</button>
+          <button class="sp-btn sp-theme-sel" data-theme="gameboy">GAME BOY</button>
+          <button class="sp-btn sp-theme-sel" data-theme="op1">OP-1</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <div class="sb"><span class="dot" id="sb-dot"></span><span id="sb-conn">connecting…</span></div>
+    <div class="sb" id="sb-dim"></div>
+    <div class="sb sb-git" id="sb-git" style="display:none"></div>
+    <div class="sb" id="sb-voice"></div>
+  </div>
+
+  <div id="mobkeys">
+    <div class="mk w" data-k="&#x1b;">ESC</div>
+    <div class="mk"   data-k="&#x09;">TAB</div>
+    <div class="mk w" data-k="&#x03;">^C</div>
+    <div class="mk w" data-k="&#x04;">^D</div>
+    <div class="mk w" data-k="&#x0c;">^L</div>
+    <div class="mk"   data-k="&#x1b;[A">↑</div>
+    <div class="mk"   data-k="&#x1b;[B">↓</div>
+    <div class="mk"   data-k="&#x1b;[C">→</div>
+    <div class="mk"   data-k="&#x1b;[D">←</div>
+    <div class="mk"   data-k="|">|</div>
+    <div class="mk"   data-k="~">~</div>
+    <div class="mk"   data-k="/">/</div>
+    <div class="mk"   data-k="-">-</div>
+    <div class="mk"   data-k="&amp;">&amp;</div>
+    <div class="mk"   data-k="`">`</div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──
+const WS_URL = `ws://${location.host}`;
+const LS = { token:'noa_token', fontSize:'noa_fs', previewOpen:'noa_po', previewUrl:'noa_pu', panelWidth:'noa_pw' };
+const params   = new URLSearchParams(location.search);
+const attachId = params.get('s');   // URLに ?s=s1 があれば既存セッションにアタッチ
+const paramTok = params.get('token');
+
+let fontSize = parseInt(localStorage.getItem(LS.fontSize) || '14');
+
+// ── STATE ──
+let ws = null, authed = false, sessId = null, sessName = '—';
+let term = null, fit = null;
+let _activePanel = null;
+
+// ── DOM ──
+const authEl     = document.getElementById('auth');
+const tokEl      = document.getElementById('tok');
+const authErr    = document.getElementById('auth-err');
+const shellEl    = document.getElementById('shell');
+const sessLabel  = document.getElementById('sess-label');
+const termEl     = document.getElementById('term-el');
+const voiceBadge = document.getElementById('voice-badge');
+const sbDot      = document.getElementById('sb-dot');
+const sbConn     = document.getElementById('sb-conn');
+const sbDim      = document.getElementById('sb-dim');
+const sbVoice    = document.getElementById('sb-voice');
+const sbGit      = document.getElementById('sb-git');
+const previewWrap      = document.getElementById('preview-wrap');
+const previewIframe    = document.getElementById('preview-iframe');
+const previewUrlEl     = document.getElementById('preview-url');
+const previewLoading   = document.getElementById('preview-loading');
+const previewFrameWrap = document.getElementById('preview-frame-wrap');
+const previewStage     = document.getElementById('preview-stage');
+const btnPreview = document.getElementById('btn-preview'); // hidden compat stub
+const btnMic     = document.getElementById('btn-mic');
+const btnSettings = document.getElementById('btn-settings');
+const settingsOverlay = document.getElementById('settings-overlay');
+
+// ── XTERM THEMES (dark / light / gameboy / op1) ──
+const XTERM_THEMES = {
+  dark:{
+    background:'#0d0d0d', foreground:'#f0ede8',
+    cursor:'#e8e020', cursorAccent:'#0d0d0d',
+    selectionBackground:'rgba(240,237,232,0.15)',
+    black:'#282828', brightBlack:'#4a4a4a',
+    red:'#ff5f5f',   brightRed:'#ff8080',
+    green:'#6fcf6f', brightGreen:'#9ae09a',
+    yellow:'#e8d57a',brightYellow:'#f0e6a0',
+    blue:'#7ab4e8',  brightBlue:'#9ecaf0',
+    magenta:'#c87adc',brightMagenta:'#dca0f0',
+    cyan:'#78d4e8',  brightCyan:'#9ee6f0',
+    white:'#c8c4be', brightWhite:'#f0ede8',
+  },
+  light:{
+    background:'#f5f4f0', foreground:'#1a1918',
+    cursor:'#7a6e00', cursorAccent:'#f5f4f0',
+    selectionBackground:'rgba(26,25,24,0.12)',
+    black:'#282828', brightBlack:'#585654',
+    red:'#cc2200',   brightRed:'#e04040',
+    green:'#2a8a2a', brightGreen:'#4aaa4a',
+    yellow:'#7a6e00',brightYellow:'#aa9c00',
+    blue:'#1a5fcc',  brightBlue:'#3a7fe0',
+    magenta:'#8a1a9a',brightMagenta:'#b03ab0',
+    cyan:'#0a7a8a',  brightCyan:'#2a9aaa',
+    white:'#8a8880', brightWhite:'#1a1918',
+  },
+  gameboy:{
+    background:'#0f380f', foreground:'#9bbc0f',
+    cursor:'#9bbc0f', cursorAccent:'#0f380f',
+    selectionBackground:'rgba(155,188,15,0.22)',
+    black:'#0f380f',  brightBlack:'#306230',
+    red:'#ff6000',    brightRed:'#ff8040',
+    green:'#9bbc0f',  brightGreen:'#c8e868',
+    yellow:'#8bac0f', brightYellow:'#9bbc0f',
+    blue:'#306250',   brightBlue:'#4a8270',
+    magenta:'#506030',brightMagenta:'#708040',
+    cyan:'#4a7a6a',   brightCyan:'#6a9a8a',
+    white:'#8bac0f',  brightWhite:'#9bbc0f',
+  },
+  op1:{
+    background:'#f2f1ef', foreground:'#1a1918',
+    cursor:'#ff6b35', cursorAccent:'#f2f1ef',
+    selectionBackground:'rgba(255,107,53,0.18)',
+    black:'#282726', brightBlack:'#585654',
+    red:'#e02020',   brightRed:'#ff4040',
+    green:'#4caf50', brightGreen:'#6ccf70',
+    yellow:'#c89010',brightYellow:'#e8b030',
+    blue:'#4a80d9',  brightBlue:'#6aa0f9',
+    magenta:'#9a4acf',brightMagenta:'#ba6aef',
+    cyan:'#1a9aaf',  brightCyan:'#3abacf',
+    white:'#9a9896', brightWhite:'#1a1918',
+  },
+};
+const THEME = XTERM_THEMES.dark;
+
+// ── WEBSOCKET ──
+function connect(token) {
+  ws = new WebSocket(WS_URL);
+  ws.onopen    = () => ws.send(JSON.stringify({ type:'auth', token }));
+  ws.onmessage = ({ data }) => { try { onMsg(JSON.parse(data)); } catch {} };
+  ws.onclose   = () => { setConn(false); setTimeout(() => authed && connect(token), 3000); };
+  ws.onerror   = () => ws.close();
+}
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function onMsg(msg) {
+  switch (msg.type) {
+    case 'auth':
+      if (!msg.ok) { authErr.textContent = 'invalid token'; return; }
+      authed = true; setConn(true);
+      localStorage.setItem(LS.token, tokEl.value.trim());
+      authEl.classList.add('gone');
+      shellEl.classList.remove('gone');
+      initTerm();
+      // Conductor layout: init editor and file tree immediately on auth
+      initMonaco();
+      setTimeout(() => _doLoadFileTree(), 300);
+      if (attachId) {
+        // URLに ?s= がある → 既存セッションにアタッチ
+        sessId = attachId;
+        send({ type:'attach', id:sessId, cols:term.cols, rows:term.rows });
+      } else {
+        // 新セッション作成
+        send({ type:'new', cols:term.cols, rows:term.rows });
+      }
+      break;
+    case 'attached':
+      sessId   = msg.id;
+      sessName = msg.name;
+      sessLabel.textContent = msg.name;
+      document.title = `Noa — ${msg.name}`;
+      history.replaceState(null, '', `?s=${sessId}&token=${encodeURIComponent(tokEl.value.trim() || localStorage.getItem(LS.token) || '')}`);
+      // git info 初回取得 + 5秒ポーリング開始
+      send({ type: 'git-info' });
+      if (window._gitPoll) clearInterval(window._gitPoll);
+      window._gitPoll = setInterval(() => { if (authed) send({ type: 'git-info' }); }, 5000);
+      break;
+    case 'output':
+      if (term) term.write(msg.data);
+      break;
+    case 'exit':
+      if (term) term.write('\r\n\x1b[31m[session ended]\x1b[0m\r\n');
+      break;
+    case 'error':
+      if (term) term.write(`\r\n\x1b[31m[error: ${msg.message}]\x1b[0m\r\n`);
+      break;
+    case 'file-changed':
+      // Claude Code などがファイルを更新したらエディターを自動反映
+      if (monacoReady && monacoEditor && msg.path === _currentFilePath) {
+        const cursor = monacoEditor.getPosition();
+        const scrollTop = monacoEditor.getScrollTop();
+        monacoEditor.setValue(msg.content);
+        if (cursor) monacoEditor.setPosition(cursor);
+        monacoEditor.setScrollTop(scrollTop);
+        _currentFileSaved = true;
+        updateSaveBtn();
+      }
+      // ファイルツリーのハイライトを編集中ファイルに追跡
+      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+      { const row = document.querySelector(`.ft-item[data-path="${msg.path}"]`);
+        if (row) row.classList.add('active'); }
+      break;
+    case 'file-active':
+      // ディレクトリ再帰 watch: Claude Code が編集中のファイルをツリーでハイライト
+      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+      { const row = document.querySelector(`.ft-item[data-path="${msg.path}"]`);
+        if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest' }); } }
+      break;
+    case 'git-info':
+      if (msg.branch) {
+        sbGit.style.display = '';
+        sbGit.innerHTML = `<span>⎇</span><span class="git-branch">${msg.branch}</span>`
+          + (msg.dirty ? `<span class="git-dirty">●${msg.dirty}</span>` : '');
+      } else {
+        sbGit.style.display = 'none';
+      }
+      // cwdをファイルツリーでハイライト
+      if (msg.cwd && _ftFileRoot) _ftHighlightCwd(msg.cwd);
+      break;
+  }
+}
+
+// ── URL ローカル判定 ──
+function isLocalUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'file:') return true;
+    const h = u.hostname;
+    return h === 'localhost' ||
+           h === '127.0.0.1' ||
+           h === '0.0.0.0'   ||
+           h === '100.107.218.60' ||  // Tailscale
+           /^192\.168\./.test(h) ||
+           /^10\./.test(h)     ||
+           /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  } catch { return false; }
+}
+
+function toPreviewUrl(url) {
+  // file:///Users/xxx/yyy → http://localhost:2797/_file/Users/xxx/yyy
+  if (url.startsWith('file://')) {
+    const filePath = url.replace('file://', '');
+    return `${location.origin}/_file${filePath}`;
+  }
+  // 0.0.0.0 はiframeで動かないのでlocalhostに変換
+  return url.replace(/^(https?:\/\/)0\.0\.0\.0(:\d+)?/, '$1localhost$2');
+}
+
+function handleLink(e, url) {
+  e.preventDefault();
+  // Noa自身をプレビューパネルに読み込むと無限ループになるので外部で開く
+  const noaOrigin = location.origin;
+  if (url.startsWith(noaOrigin + '/?') || url === noaOrigin || url === noaOrigin + '/') {
+    window.open(url, '_blank');
+    return;
+  }
+  if (isLocalUrl(url)) {
+    previewUrlEl.value = toPreviewUrl(url);
+    if (!previewOpen) openPreview();
+    else loadPreview();
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+// ── TERMINAL ──
+function initTerm() {
+  const FitCls = FitAddon?.FitAddon ?? window.FitAddon;
+  term = new Terminal({
+    fontFamily: "'Space Mono', monospace",
+    fontSize, lineHeight: 1.18, theme: THEME,
+    cursorBlink: true, cursorStyle: 'block',
+    allowTransparency: true, scrollback: 8000,
+    macOptionIsMeta: true,
+  });
+  fit = new FitCls();
+  term.loadAddon(fit);
+  term.open(termEl);
+  // 初期化直後はまだレイアウトが確定していないことがあるので遅延fit
+  requestAnimationFrame(() => { try { fit.fit(); } catch {} });
+  setTimeout(() => { try { fit.fit(); } catch {} }, 100);
+
+  term.onData(d => {
+    send({ type:'input', data:d });
+    // Enter後にgit情報を更新（cdで変わることがある）
+    if (d === '\r' || d === '\n') {
+      setTimeout(() => { if (authed) send({ type: 'git-info' }); }, 600);
+    }
+  });
+
+  // URL クリック v3 — ANSI yellow injection + knownUrls click
+  // decorations.colorはxterm.js未対応のため、ANSIコードで直接黄色にする
+  const YELLOW_ANSI  = '\x1b[38;2;232;224;32m';
+  const RESET_FG     = '\x1b[39m';
+  const URL_RAW_RE   = /((?:https?|file):\/\/[^\s\x1b"'<>]+)/g; // raw data用（\x1b除外）
+  const URL_SCAN_RE  = /((?:https?|file):\/\/[^\s"'<>]+)/g;     // クリーンテキスト用
+  let _rawBuf = '';
+  const _knownUrls = new Set();
+  console.log('[Noa] link provider v3 loaded');
+
+  const _origWrite = term.write.bind(term);
+  term.write = function(data) {
+    const raw = typeof data === 'string' ? data : new TextDecoder().decode(data);
+
+    // ANSI除去してURLを_knownUrlsに蓄積
+    _rawBuf += raw;
+    if (_rawBuf.length > 8000) _rawBuf = _rawBuf.slice(-8000);
+    const clean = _rawBuf.replace(/\x1b\[[^A-Za-z]*[A-Za-z]/g, '');
+    URL_SCAN_RE.lastIndex = 0;
+    let m;
+    while ((m = URL_SCAN_RE.exec(clean)) !== null) {
+      _knownUrls.add(m[1].replace(/["'>)\]]+$/, ''));
+    }
+
+    // URLを黄色ANSIで囲んでからxterm.jsに書き込む
+    const colored = raw.replace(URL_RAW_RE, YELLOW_ANSI + '$1' + RESET_FG);
+    _origWrite(colored);
+  };
+
+  // クリック: _knownUrlsの完全URLを使う（行折り返しに左右されない）
+  term.registerLinkProvider({
+    provideLinks(y, cb) {
+      const buf  = term.buffer.active;
+      const line = buf.getLine(y - 1);
+      if (!line) { cb([]); return; }
+      const lineText = line.translateToString(true);
+      const trimmed  = lineText.trimEnd();
+      if (!trimmed) { cb([]); return; }
+      const links = [];
+      for (const url of _knownUrls) {
+        const idx = trimmed.indexOf(url);
+        if (idx !== -1) {
+          // URL全体がこの行に収まる
+          links.push({
+            text: url,
+            range: { start: { x: idx + 1, y }, end: { x: idx + url.length, y } },
+            activate: (_e, _t) => handleLink(_e, url),
+            decorations: { underline: true, pointerCursor: true },
+          });
+        } else if (trimmed.length >= 4) {
+          // ① URLの先頭部分がこの行にある（次行に続く折り返し）
+          const pi = trimmed.indexOf(url.slice(0, Math.min(url.length, trimmed.length)));
+          if (pi !== -1 && url.startsWith(trimmed.slice(pi))) {
+            links.push({
+              text: url,
+              range: { start: { x: pi + 1, y }, end: { x: trimmed.length, y } },
+              activate: (_e, _t) => handleLink(_e, url),
+              decorations: { underline: true, pointerCursor: true },
+            });
+          }
+          // ② URLの末尾部分がこの行にある（前行から続く折り返し）
+          else if (trimmed.length >= 4 && url.endsWith(trimmed)) {
+            links.push({
+              text: url,
+              range: { start: { x: 1, y }, end: { x: trimmed.length, y } },
+              activate: (_e, _t) => handleLink(_e, url),
+              decorations: { underline: true, pointerCursor: true },
+            });
+          }
+        }
+      }
+      cb(links);
+    }
+  });
+
+  term.focus();
+
+  new ResizeObserver(() => {
+    requestAnimationFrame(() => { try { fit.fit(); sendResize(); } catch {} });
+  }).observe(termEl);
+
+  // リロード時はプレビューパネルを完全リセット（URL・iframe含む）
+  localStorage.setItem(LS.previewOpen, '0');
+  localStorage.removeItem(LS.previewUrl);
+  previewUrlEl.value = '';
+  previewIframe.src  = 'about:blank';
+}
+
+function sendResize() {
+  if (!term) return;
+  send({ type:'resize', cols:term.cols, rows:term.rows });
+  sbDim.textContent = `${term.cols}×${term.rows}`;
+}
+
+// ── FONT ──
+function setFont(d) {
+  fontSize = Math.max(9, Math.min(28, fontSize + d));
+  localStorage.setItem(LS.fontSize, fontSize);
+  if (term) { term.options.fontSize = fontSize; fit?.fit(); sendResize(); }
+}
+document.getElementById('btn-fi').addEventListener('click', () => setFont(1));
+document.getElementById('btn-fd').addEventListener('click', () => setFont(-1));
+
+// ── NEW SESSION（確認してから新タブを1つだけ開く） ──
+let _newTabCooldown = false;
+function openNewTab() {
+  if (_newTabCooldown) return; // 連打防止
+  _newTabCooldown = true;
+  setTimeout(() => { _newTabCooldown = false; }, 3000);
+  const token = localStorage.getItem(LS.token) || '';
+  window.open(`${location.origin}/?token=${encodeURIComponent(token)}`, '_blank');
+}
+document.getElementById('btn-new').addEventListener('click', openNewTab);
+
+// ── PREVIEW ──
+let previewOpen = true, currentView = 'pc'; // always visible in Conductor layout
+
+function reflowTerm() {
+  if (!fit || !term) return;
+  try { fit.fit(); sendResize(); } catch {}
+}
+function scheduleReflow() {
+  reflowTerm();
+  requestAnimationFrame(() => {
+    reflowTerm();
+    setTimeout(reflowTerm, 100);
+  });
+}
+const resizeHandle = document.getElementById('resize-handle'); // compat stub
+function openPreview(save = true) {
+  previewOpen = true;
+  const savedUrl = localStorage.getItem(LS.previewUrl);
+  if (savedUrl && !previewUrlEl.value) previewUrlEl.value = savedUrl;
+  if (previewIframe.src === 'about:blank' && previewUrlEl.value) loadPreview();
+  scheduleReflow();
+}
+function closePreview() {
+  previewOpen = false;
+  scheduleReflow();
+}
+
+function loadPreview() {
+  const url = previewUrlEl.value.trim();
+  if (!url) return;
+  localStorage.setItem(LS.previewUrl, url);
+  previewLoading.classList.add('show');
+  previewIframe.src = url;
+}
+previewIframe.addEventListener('load',  () => previewLoading.classList.remove('show'));
+previewIframe.addEventListener('error', () => previewLoading.classList.remove('show'));
+previewUrlEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadPreview(); } });
+document.getElementById('preview-reload').addEventListener('click', loadPreview);
+document.getElementById('preview-open').addEventListener('click', () => {
+  window.open(previewUrlEl.value.trim(), '_blank');
+});
+
+// PC / SP / Tablet
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const stageH = previewStage.offsetHeight || 600;
+  if (v === 'pc') {
+    previewFrameWrap.style.cssText = 'width:100%;height:100%';
+    previewIframe.style.cssText    = 'width:100%;height:100%';
+    previewFrameWrap.style.transform = '';
+    previewStage.style.alignItems  = 'stretch';
+  } else {
+    const w = v === 'sp' ? 375 : 768;
+    // プレビュー自体を仮想デバイス幅に
+    previewFrameWrap.style.cssText = `width:${w}px;height:${stageH}px`;
+    previewIframe.style.cssText    = `width:${w}px;height:${stageH}px`;
+    previewFrameWrap.style.transform       = '';
+    previewFrameWrap.style.transformOrigin = 'top center';
+    previewStage.style.alignItems  = 'flex-start';
+  }
+  scheduleReflow();
+}
+document.getElementById('view-pc').addEventListener('click',  () => setView('pc'));
+document.getElementById('view-sp').addEventListener('click',  () => setView('sp'));
+document.getElementById('view-tab').addEventListener('click', () => setView('tab'));
+
+// ── VOICE INPUT ──
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null, micOn = false;
+let audioCtx = null, analyser = null, micStream = null, waveRaf = null, silenceTimer = null;
+const voiceTextEl = document.getElementById('voice-text');
+const voiceWave   = document.getElementById('voice-wave');
+
+if (SR) {
+  recognizer = new SR();
+  recognizer.continuous = true;
+  recognizer.interimResults = true;
+  recognizer.lang = 'ja-JP';
+  recognizer.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (final += t) : (interim += t);
+    }
+    const display = interim || final;
+    if (display) showBadge(display, !!final);
+    if (final) {
+      send({ type: 'input', data: final + '\n' });
+    }
+  };
+  recognizer.onerror = (ev) => {
+    const msg = ev.error === 'not-allowed' ? 'マイク権限を許可してください'
+              : ev.error === 'no-speech'   ? ''   // no-speechは無視して継続
+              : '⚠ ' + ev.error;
+    if (msg) showBadge(msg, true);
+    if (ev.error !== 'no-speech') stopMic();
+  };
+  recognizer.onend = () => { if (micOn) { try { recognizer.start(); } catch {} } };
+} else {
+  btnMic.style.opacity = '.3';
+  btnMic.title = 'このブラウザは音声入力未対応';
+}
+
+async function startMic() {
+  if (!recognizer || micOn) return;
+  micOn = true; // drawWaveのif(!micOn)チェックより先にセット
+  btnMic.classList.add('mic-on');
+  sbVoice.textContent = '● REC';
+  voiceBadge.classList.add('show');
+  // Web Audio で波形取得
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+      video: false
+    });
+    // ストリームが即切れた場合（Continuity Mic 拒否など）を検知
+    const track = micStream.getAudioTracks()[0];
+    if (!track) throw new Error('NoTrack');
+    track.onended = () => {
+      if (micOn) {
+        voiceTextEl.textContent = '⚠ マイクが切断されました';
+        analyser = null;
+      }
+    };
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
+    analyser.smoothingTimeConstant = 0.8;
+    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+    drawWave();
+  } catch(e) {
+    const msg = e.name === 'NotAllowedError' ? '⚠ マイク許可が必要\nアドレスバー左🔒 → マイク → 許可'
+              : e.name === 'NotFoundError'   ? '⚠ マイクが見つかりません'
+              : '⚠ ' + (e.message || e.name);
+    voiceTextEl.textContent = msg;
+    voiceTextEl.style.whiteSpace = 'pre-line';
+    voiceTextEl.style.fontSize = '.62rem';
+    voiceTextEl.style.lineHeight = '1.5';
+  }
+  try { recognizer.start(); } catch(e) { showBadge('⚠ ' + e.message, true); micOn = false; stopWave(); return; }
+}
+
+function stopMic() {
+  micOn = false;
+  if (recognizer) { try { recognizer.stop(); } catch {} }
+  btnMic.classList.remove('mic-on');
+  sbVoice.textContent = '';
+  stopWave();
+  hideBadge();
+}
+
+const SILENCE_MS = 3500; // この時間無音なら自動停止
+function drawWave() {
+  if (!analyser || !voiceWave) return;
+  const ctx = voiceWave.getContext('2d');
+  const W = voiceWave.width, H = voiceWave.height;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  function frame() {
+    if (!micOn) return;
+    waveRaf = requestAnimationFrame(frame);
+    analyser.getByteFrequencyData(buf);
+    // 無音検出（全バンドの平均が閾値以下で一定時間 → 自動停止）
+    const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+    if (avg < 4) {
+      if (!silenceTimer) silenceTimer = setTimeout(() => stopMic(), SILENCE_MS);
+    } else {
+      clearTimeout(silenceTimer); silenceTimer = null;
+    }
+    // 波形描画 (fftSize=256 → frequencyBinCount=128)
+    ctx.clearRect(0, 0, W, H);
+    const step = Math.ceil(buf.length / 40); // 最大40本に間引き
+    const bars = [];
+    for (let i = 0; i < buf.length; i += step) bars.push(buf[i]);
+    const bw = Math.max(3, (W / bars.length) - 1);
+    const hasSignal = bars.some(v => v > 8);
+    bars.forEach((v, i) => {
+      const h = hasSignal ? Math.max(2, (v / 255) * H) : 2;
+      const alpha = hasSignal ? (0.4 + (v / 255) * 0.6) : 0.18;
+      ctx.fillStyle = `rgba(232,224,32,${alpha})`;
+      ctx.fillRect(i * (bw + 1), H - h, bw, h);
+    });
+  }
+  frame();
+}
+
+function stopWave() {
+  clearTimeout(silenceTimer); silenceTimer = null;
+  cancelAnimationFrame(waveRaf); waveRaf = null;
+  if (voiceWave) { const c = voiceWave.getContext('2d'); c.clearRect(0,0,voiceWave.width,voiceWave.height); }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx)  { audioCtx.close(); audioCtx = null; }
+  analyser = null;
+}
+
+btnMic.addEventListener('click', () => micOn ? stopMic() : startMic());
+
+let badgeTimer = null;
+function showBadge(txt, fin) {
+  if (voiceTextEl) voiceTextEl.textContent = txt;
+  voiceBadge.classList.add('show');
+  if (fin) { clearTimeout(badgeTimer); badgeTimer = setTimeout(() => { if(voiceTextEl) voiceTextEl.textContent=''; }, 1200); }
+}
+function hideBadge() { voiceBadge.classList.remove('show'); }
+
+// ── STATUS ──
+function setConn(on) {
+  sbDot.classList.toggle('on', on);
+  sbConn.textContent = on ? 'connected' : 'reconnecting…';
+}
+
+// ── MOBILE KEYS ──
+document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
+  el.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
+});
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown', e => {
+  if (!authed) { if (e.key==='Enter') document.getElementById('auth-btn').click(); return; }
+  // 音声入力の停止はマイクボタンのみ（Enter/Escでのトリガーは廃止）
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key==='t') { e.preventDefault(); openNewTab(); }
+  if (mod && e.key==='=') { e.preventDefault(); setFont(1); }
+  if (mod && e.key==='-') { e.preventDefault(); setFont(-1); }
+  if (mod && e.key==='b') { e.preventDefault(); settingsOverlay.classList.contains('show') ? closeSettings() : openSettings(); }
+  if (mod && e.key==='m') { e.preventDefault(); micOn ? stopMic() : startMic(); }
+  if (mod && e.shiftKey && e.key==='F') { e.preventDefault(); toggleEditorFullscreen(); }
+});
+
+// ── iframe jitter 防止ユーティリティ ──
+function _freezeIframes() {
+  document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = 'none');
+}
+function _thawIframes() {
+  document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = '');
+}
+
+// ── RESIZE: terminal | editor (main-resize-handle) ──
+const mainResizeHandle = document.getElementById('main-resize-handle');
+const termWrapEl = document.getElementById('term-wrap');
+let _mrDrag = false, _mrStartX = 0, _mrStartW = 0;
+mainResizeHandle.addEventListener('mousedown', e => {
+  _mrDrag = true; _mrStartX = e.clientX; _mrStartW = termWrapEl.offsetWidth;
+  mainResizeHandle.classList.add('dragging'); _freezeIframes();
+  document.addEventListener('mousemove', _mrMove);
+  document.addEventListener('mouseup', _mrUp);
+  e.preventDefault();
+});
+function _mrMove(e) {
+  if (!_mrDrag) return;
+  const newW = Math.max(120, Math.min(600, _mrStartW + (e.clientX - _mrStartX)));
+  termWrapEl.style.width = newW + 'px';
+}
+function _mrUp() {
+  _mrDrag = false; mainResizeHandle.classList.remove('dragging');
+  document.removeEventListener('mousemove', _mrMove);
+  document.removeEventListener('mouseup', _mrUp);
+  _thawIframes(); scheduleReflow();
+  if (monacoEditor) monacoEditor.layout();
+}
+mainResizeHandle.addEventListener('touchstart', e => {
+  const t = e.touches[0]; _mrDrag = true; _mrStartX = t.clientX; _mrStartW = termWrapEl.offsetWidth;
+  mainResizeHandle.classList.add('dragging'); _freezeIframes(); e.preventDefault();
+}, { passive: false });
+
+// ── RESIZE: editor | right pane (right-resize-handle) ──
+const rightResizeHandle = document.getElementById('right-resize-handle');
+const rightPaneEl = document.getElementById('right-pane');
+let _rrDrag = false, _rrStartX = 0, _rrStartW = 0;
+rightResizeHandle.addEventListener('mousedown', e => {
+  _rrDrag = true; _rrStartX = e.clientX; _rrStartW = rightPaneEl.offsetWidth;
+  rightResizeHandle.classList.add('dragging'); _freezeIframes();
+  document.addEventListener('mousemove', _rrMove);
+  document.addEventListener('mouseup', _rrUp);
+  e.preventDefault();
+});
+function _rrMove(e) {
+  if (!_rrDrag) return;
+  const newW = Math.max(160, Math.min(600, _rrStartW - (e.clientX - _rrStartX)));
+  rightPaneEl.style.width = newW + 'px';
+}
+function _rrUp() {
+  _rrDrag = false; rightResizeHandle.classList.remove('dragging');
+  document.removeEventListener('mousemove', _rrMove);
+  document.removeEventListener('mouseup', _rrUp);
+  _thawIframes();
+  if (monacoEditor) monacoEditor.layout();
+}
+rightResizeHandle.addEventListener('touchstart', e => {
+  const t = e.touches[0]; _rrDrag = true; _rrStartX = t.clientX; _rrStartW = rightPaneEl.offsetWidth;
+  rightResizeHandle.classList.add('dragging'); _freezeIframes(); e.preventDefault();
+}, { passive: false });
+
+// ── RESIZE: file tree | preview (right-split-handle) ──
+const rightSplitHandle = document.getElementById('right-split-handle');
+const ftWrapEl = document.getElementById('ft-wrap');
+const previewPaneEl = document.getElementById('preview-pane');
+let _rssDrag = false, _rssStartY = 0, _rssStartH = 0;
+rightSplitHandle.addEventListener('mousedown', e => {
+  _rssDrag = true; _rssStartY = e.clientY; _rssStartH = ftWrapEl.offsetHeight;
+  rightSplitHandle.classList.add('dragging'); _freezeIframes();
+  document.addEventListener('mousemove', _rssMove);
+  document.addEventListener('mouseup', _rssUp);
+  e.preventDefault();
+});
+function _rssMove(e) {
+  if (!_rssDrag) return;
+  const rightH = rightPaneEl.offsetHeight;
+  const newH = Math.max(60, Math.min(rightH - 60, _rssStartH + (e.clientY - _rssStartY)));
+  ftWrapEl.style.flex = 'none';
+  ftWrapEl.style.height = newH + 'px';
+  previewPaneEl.style.flex = '1';
+}
+function _rssUp() {
+  _rssDrag = false; rightSplitHandle.classList.remove('dragging');
+  document.removeEventListener('mousemove', _rssMove);
+  document.removeEventListener('mouseup', _rssUp);
+  _thawIframes();
+}
+rightSplitHandle.addEventListener('touchstart', e => {
+  const t = e.touches[0]; _rssDrag = true; _rssStartY = t.clientY; _rssStartH = ftWrapEl.offsetHeight;
+  rightSplitHandle.classList.add('dragging'); _freezeIframes(); e.preventDefault();
+}, { passive: false });
+
+// shared touch handlers for all resize drags
+document.addEventListener('touchmove', e => {
+  if (_mrDrag) { _mrMove(e.touches[0]); e.preventDefault(); }
+  if (_rrDrag) { _rrMove(e.touches[0]); e.preventDefault(); }
+  if (_rssDrag) { _rssMove(e.touches[0]); e.preventDefault(); }
+}, { passive: false });
+document.addEventListener('touchend', () => {
+  if (_mrDrag)  { _mrDrag  = false; mainResizeHandle.classList.remove('dragging');  _thawIframes(); scheduleReflow(); }
+  if (_rrDrag)  { _rrDrag  = false; rightResizeHandle.classList.remove('dragging'); _thawIframes(); }
+  if (_rssDrag) { _rssDrag = false; rightSplitHandle.classList.remove('dragging');  _thawIframes(); }
+});
+
+// ── EDITOR PANEL ──
+let monacoReady = false, monacoScriptLoaded = false, monacoEditor = null;
+let _currentFilePath = null, _currentFileSaved = true;
+let _treeExpanded = new Set();
+
+// Conductor layout: both editor and preview are always visible; tabs are no-ops
+function switchPanelTab(tab) { scheduleReflow(); }
+
+// Monaco をCDNから遅延ロード
+function initMonaco() {
+  if (monacoReady) { setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 50); return; }
+  if (monacoScriptLoaded) return;
+  monacoScriptLoaded = true;
+  const cfgScript = document.createElement('script');
+  cfgScript.textContent = "var require={paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs'}};";
+  document.head.appendChild(cfgScript);
+  const loaderScript = document.createElement('script');
+  loaderScript.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs/loader.js';
+  loaderScript.onload = () => {
+    require(['vs/editor/editor.main'], function() {
+      monacoReady = true;
+      monacoEditor = monaco.editor.create(document.getElementById('monaco-wrap'), {
+        value: '',
+        language: 'plaintext',
+        theme: MONACO_THEME[localStorage.getItem('noa_theme')] || 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 13,
+        fontFamily: "'Space Mono', monospace",
+        lineNumbers: 'on',
+        scrollBeyondLastLine: false,
+        wordWrap: 'off',
+        renderWhitespace: 'selection',
+      });
+      monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveCurrentFile());
+      monacoEditor.onDidChangeModelContent(() => { if (_currentFilePath) markUnsaved(); });
+    });
+  };
+  document.head.appendChild(loaderScript);
+}
+
+// ファイルツリー
+function _ftIcon(name, isDir) {
+  if (isDir) return '📁';
+  const ext = name.split('.').pop().toLowerCase();
+  const m = {js:'js',mjs:'js',ts:'ts',tsx:'ts',jsx:'js',html:'ht',css:'cs',
+             json:'{}',md:'md',py:'py',sh:'sh',env:'⚙',yaml:'y',yml:'y',
+             txt:'¶',rs:'rs',go:'go',rb:'rb',php:'ph'};
+  return m[ext] || '·';
+}
+function _ftLang(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const m = {js:'javascript',mjs:'javascript',cjs:'javascript',ts:'typescript',tsx:'typescript',
+             jsx:'javascript',html:'html',css:'css',scss:'scss',less:'less',json:'json',
+             md:'markdown',py:'python',sh:'shell',bash:'shell',zsh:'shell',
+             yaml:'yaml',yml:'yaml',toml:'ini',env:'shell',
+             rs:'rust',go:'go',c:'c',cpp:'cpp',java:'java',rb:'ruby',php:'php'};
+  return m[ext] || 'plaintext';
+}
+
+let _ftFileRoot = ''; // FILE_ROOT（絶対パス）をキャッシュ
+async function _ftFetch(relPath) {
+  const tok = localStorage.getItem(LS.token) || '';
+  const r = await fetch(`/_dir?path=${encodeURIComponent(relPath)}&token=${encodeURIComponent(tok)}`);
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.error || `HTTP ${r.status}`);
+  }
+  const d = await r.json();
+  if (d.root && !_ftFileRoot) _ftFileRoot = d.root; // 初回だけ保存
+  return d.list || [];
+}
+
+function _ftBuildItem(item, depth, parentEl) {
+  const row = document.createElement('div');
+  row.className = 'ft-item';
+  row.dataset.path = item.path;
+  row.style.paddingLeft = (depth * 12 + 8) + 'px';
+  const chev = document.createElement('span');
+  chev.className = 'ft-chevron';
+  chev.textContent = item.isDir ? '▸' : '';
+  const icon = document.createElement('span');
+  icon.className = 'ft-icon';
+  icon.textContent = _ftIcon(item.name, item.isDir);
+  const nameEl = document.createElement('span');
+  nameEl.className = 'ft-name';
+  nameEl.textContent = item.name;
+  row.append(chev, icon, nameEl);
+
+  if (!item.isDir) {
+    const ccBtn = document.createElement('button');
+    ccBtn.className = 'ft-cc-btn';
+    ccBtn.textContent = '@';
+    ccBtn.title = 'Claude Code に @path を送信';
+    ccBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      send({ type: 'input', data: '@' + item.path + ' ' });
+    });
+    row.appendChild(ccBtn);
+  }
+
+  parentEl.appendChild(row);
+
+  if (item.isDir) {
+    const children = document.createElement('div');
+    children.className = 'ft-children';
+    parentEl.appendChild(children);
+    let _ftLoading = false; // ロード中フラグ（二重クリック防止）
+    row.addEventListener('click', async () => {
+      if (_ftLoading) return; // ロード中は無視
+      if (_treeExpanded.has(item.path)) {
+        // 折りたたむ
+        _treeExpanded.delete(item.path);
+        chev.textContent = '▸'; icon.textContent = '📁';
+        children.classList.remove('open'); children.innerHTML = '';
+      } else {
+        // 展開開始
+        _ftLoading = true;
+        _treeExpanded.add(item.path);
+        chev.textContent = '…'; // ロード中インジケーター
+        icon.textContent = '📂';
+        children.innerHTML = `<div class="ft-item" style="padding-left:${(depth+1)*12+8}px;color:var(--faint);font-size:.65rem">loading…</div>`;
+        children.classList.add('open');
+        try {
+          const items = await _ftFetch(item.path);
+          // ロード完了時にまだ展開状態かチェック
+          if (!_treeExpanded.has(item.path)) { _ftLoading = false; return; }
+          children.innerHTML = '';
+          if (items.length === 0) {
+            children.innerHTML = `<div class="ft-item" style="padding-left:${(depth+1)*12+8}px;color:var(--faint);font-size:.65rem">— empty —</div>`;
+          } else {
+            items.forEach(child => _ftBuildItem(child, depth + 1, children));
+          }
+          chev.textContent = '▾';
+        } catch(e) {
+          children.innerHTML = `<div class="ft-item" style="padding-left:${(depth+1)*12+8}px;color:var(--danger);font-size:.65rem">⚠ ${e.message}</div>`;
+          // エラー時はロールバック
+          _treeExpanded.delete(item.path);
+          chev.textContent = '▸'; icon.textContent = '📁';
+        }
+        _ftLoading = false;
+      }
+    });
+  } else {
+    row.addEventListener('click', () => {
+      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+      row.classList.add('active');
+      openFileInEditor(item.path, item.name);
+    });
+  }
+}
+
+async function _doLoadFileTree() {
+  const container = document.getElementById('file-tree');
+  if (!container) return;
+  const items = await _ftFetch('/');
+  container.innerHTML = '';
+  items.forEach(item => _ftBuildItem(item, 0, container));
+  send({ type: 'watch-dir', path: '/' });
+}
+
+// cwdをファイルツリーでハイライト（cdで移動した場所を黄色表示）
+async function _ftHighlightCwd(absCwd) {
+  if (!_ftFileRoot) return;
+  const rel = absCwd.startsWith(_ftFileRoot)
+    ? absCwd.slice(_ftFileRoot.length) || '/'
+    : null;
+  if (!rel || rel === '/') return;
+
+  // 既存のcwdハイライトをクリア
+  document.querySelectorAll('.ft-item.cwd-active').forEach(el => el.classList.remove('cwd-active'));
+
+  // パスを上から順に展開しながら辿る
+  const parts = rel.split('/').filter(Boolean);
+  let currentPath = '';
+  for (let i = 0; i < parts.length; i++) {
+    currentPath += '/' + parts[i];
+    const row = document.querySelector(`.ft-item[data-path="${currentPath}"]`);
+    if (!row) break;
+
+    const isLast = i === parts.length - 1;
+    const childrenDiv = row.nextElementSibling;
+
+    // 最後のセグメント以外はフォルダを展開してchildrenをロード
+    if (!isLast && childrenDiv && childrenDiv.classList.contains('ft-children')
+        && !childrenDiv.classList.contains('open')) {
+      _treeExpanded.add(currentPath);
+      const chev = row.querySelector('.ft-chevron');
+      const icon = row.querySelector('.ft-icon');
+      childrenDiv.classList.add('open');
+      if (chev) chev.textContent = '…';
+      if (icon) icon.textContent = '📂';
+      try {
+        const depth = currentPath.split('/').filter(Boolean).length;
+        const items = await _ftFetch(currentPath);
+        childrenDiv.innerHTML = '';
+        items.forEach(child => _ftBuildItem(child, depth, childrenDiv));
+        if (chev) chev.textContent = '▾';
+      } catch {
+        _treeExpanded.delete(currentPath);
+        if (chev) chev.textContent = '▸';
+        if (icon) icon.textContent = '📁';
+        break;
+      }
+    }
+  }
+
+  // 対象フォルダをハイライト＆スクロール
+  const target = document.querySelector(`.ft-item[data-path="${rel}"]`);
+  if (target) {
+    target.classList.add('cwd-active');
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+// ファイル種別判定
+const _MEDIA_IMG   = new Set(['jpg','jpeg','png','gif','webp','svg','bmp','ico','tiff','tif','heic','heif','avif']);
+const _MEDIA_VIDEO = new Set(['mp4','mov','webm','avi','mkv','m4v','ogv']);
+const _MEDIA_AUDIO = new Set(['mp3','m4a','wav','ogg','flac','aac','opus','wma']);
+const _MEDIA_FRAME = new Set(['pdf','html','htm']);  // iframe で表示
+const _MEDIA_TEXT  = new Set([
+  'js','mjs','cjs','ts','tsx','jsx','css','scss','less','json',
+  'md','markdown','py','sh','bash','zsh','yaml','yml','toml','env',
+  'rs','go','c','cpp','h','java','rb','php','txt','csv','xml',
+  'ini','conf','log','sql','graphql','prisma','vue','svelte',
+  'gitignore','dockerfile','makefile',
+]);
+
+function _mediaType(ext) {
+  if (_MEDIA_IMG.has(ext))   return 'img';
+  if (_MEDIA_VIDEO.has(ext)) return 'video';
+  if (_MEDIA_AUDIO.has(ext)) return 'audio';
+  if (_MEDIA_FRAME.has(ext)) return 'frame';
+  if (_MEDIA_TEXT.has(ext))  return 'text';
+  return 'frame';  // 不明は iframe で試みる
+}
+
+function _showMediaViewer(relPath, type) {
+  document.getElementById('monaco-wrap').classList.add('hidden');
+  const view = document.getElementById('editor-image-view');
+  view.classList.remove('hidden');
+  const tok = localStorage.getItem(LS.token) || '';
+  const src = `/_img?path=${encodeURIComponent(relPath)}&token=${encodeURIComponent(tok)}`;
+
+  const imgEl   = document.getElementById('editor-media-img');
+  const vidEl   = document.getElementById('editor-media-video');
+  const audEl   = document.getElementById('editor-media-audio');
+  const frmEl   = document.getElementById('editor-media-iframe');
+
+  [imgEl, vidEl, audEl, frmEl].forEach(el => { el.style.display = 'none'; el.src = ''; });
+  view.classList.toggle('pad', type === 'img' || type === 'audio');
+
+  if (type === 'img')   { imgEl.src = src;   imgEl.style.display = 'block'; }
+  if (type === 'video') { vidEl.src = src;   vidEl.style.display = 'block'; }
+  if (type === 'audio') { audEl.src = src;   audEl.style.display = 'block'; }
+  if (type === 'frame') { frmEl.src = src;   frmEl.style.display = 'block'; }
+}
+
+// ファイルを開く
+async function openFileInEditor(relPath, name) {
+  const ext  = name.split('.').pop().toLowerCase();
+  const mtype = _mediaType(ext);
+
+  _currentFilePath = relPath;
+  document.getElementById('editor-filepath').textContent = relPath;
+
+  if (mtype !== 'text') {
+    _currentFileSaved = true; updateSaveBtn();
+    _showMediaViewer(relPath, mtype);
+    return;
+  }
+
+  // テキスト/コード → Monaco
+  document.getElementById('monaco-wrap').classList.remove('hidden');
+  document.getElementById('editor-image-view').classList.add('hidden');
+
+  if (!monacoReady) {
+    const poll = () => monacoReady ? openFileInEditor(relPath, name) : setTimeout(poll, 200);
+    setTimeout(poll, 200);
+    return;
+  }
+  const tok = localStorage.getItem(LS.token) || '';
+  try {
+    const r = await fetch(`/_read?path=${encodeURIComponent(relPath)}&token=${encodeURIComponent(tok)}`);
+    const d = await r.json();
+    if (d.error) { alert('Error: ' + d.error); return; }
+    const model = monacoEditor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, _ftLang(name));
+    monacoEditor.setValue(d.content);
+    monacoEditor.setScrollPosition({ scrollTop: 0 });
+    _currentFileSaved = true;
+    updateSaveBtn();
+    send({ type: 'watch', path: relPath });
+  } catch(e) { console.error('[editor] read error', e); }
+}
+
+// ファイルを保存
+async function saveCurrentFile() {
+  if (!_currentFilePath || !monacoReady || !monacoEditor) return;
+  const tok = localStorage.getItem(LS.token) || '';
+  try {
+    const r = await fetch('/_write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-noa-token': tok },
+      body: JSON.stringify({ path: _currentFilePath, content: monacoEditor.getValue() }),
+    });
+    const d = await r.json();
+    if (d.ok) { _currentFileSaved = true; updateSaveBtn(true); }
+  } catch(e) { console.error('[editor] write error', e); }
+}
+
+function markUnsaved() {
+  if (_currentFileSaved) { _currentFileSaved = false; updateSaveBtn(); }
+}
+function updateSaveBtn(flash = false) {
+  const btn = document.getElementById('editor-save-btn');
+  const fp  = document.getElementById('editor-filepath');
+  if (!btn || !fp) return;
+  fp.classList.toggle('editor-unsaved', !_currentFileSaved);
+  if (flash) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 800); }
+}
+document.getElementById('editor-save-btn').addEventListener('click', saveCurrentFile);
+
+// ── エディター フォントサイズ ──
+let _editorFontSize = 13;
+function setEditorFontSize(delta) {
+  _editorFontSize = Math.max(10, Math.min(28, _editorFontSize + delta));
+  if (monacoEditor) monacoEditor.updateOptions({ fontSize: _editorFontSize });
+}
+document.getElementById('editor-fi-btn').addEventListener('click', () => setEditorFontSize(1));
+document.getElementById('editor-fd-btn').addEventListener('click', () => setEditorFontSize(-1));
+
+// ── エディター パスをターミナルに送る ──
+document.getElementById('editor-copy-path-btn').addEventListener('click', () => {
+  if (!_currentFilePath) return;
+  const btn = document.getElementById('editor-copy-path-btn');
+  // クリップボードにコピー
+  navigator.clipboard.writeText(_currentFilePath).catch(() => {});
+  // ターミナルにもパスをそのまま入力（実行はしない）
+  send({ type: 'input', data: _currentFilePath });
+  // ボタンフラッシュ
+  const orig = btn.textContent;
+  btn.textContent = '✓ SENT'; btn.style.color = 'var(--ok)';
+  setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1000);
+});
+
+// ── エディター 全画面 ──
+let _editorFullscreen = false;
+function toggleEditorFullscreen() {
+  _editorFullscreen = !_editorFullscreen;
+  const btn = document.getElementById('editor-fullscreen-btn');
+  const tw = document.getElementById('term-wrap');
+  const rp = document.getElementById('right-pane');
+  const mrh = document.getElementById('main-resize-handle');
+  const rrh = document.getElementById('right-resize-handle');
+  if (_editorFullscreen) {
+    tw.style.display = 'none'; mrh.style.display = 'none';
+    rp.style.display = 'none'; rrh.style.display = 'none';
+    btn.textContent = '⤡'; btn.title = '元に戻す (⌘⇧F)';
+    btn.classList.add('active');
+  } else {
+    tw.style.display = ''; mrh.style.display = '';
+    rp.style.display = ''; rrh.style.display = '';
+    btn.textContent = '⤢'; btn.title = '全画面 (⌘⇧F)';
+    btn.classList.remove('active');
+  }
+  scheduleReflow();
+  setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 80);
+}
+document.getElementById('editor-fullscreen-btn').addEventListener('click', toggleEditorFullscreen);
+
+// ── エディター インラインプレビュー ──
+const eipIframe  = document.getElementById('eip-iframe');
+const eipUrlEl   = document.getElementById('eip-url');
+const eipInline  = document.getElementById('editor-inline-preview');
+const eipResize  = document.getElementById('editor-inline-resize');
+let _eipOpen = false;
+
+function loadEip() {
+  const url = eipUrlEl.value.trim(); if (!url) return;
+  eipIframe.src = toPreviewUrl(url);
+}
+eipUrlEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadEip(); } });
+document.getElementById('eip-reload').addEventListener('click', loadEip);
+
+function toggleEditorInlinePreview() {
+  _eipOpen = !_eipOpen;
+  eipInline.classList.toggle('hidden', !_eipOpen);
+  eipResize.classList.toggle('hidden', !_eipOpen);
+  const btn = document.getElementById('editor-preview-btn');
+  btn.classList.toggle('active', _eipOpen);
+  btn.style.color = _eipOpen ? 'var(--accent)' : '';
+  // 既存プレビューのURLがあれば引き継ぐ
+  if (_eipOpen && !eipUrlEl.value && previewUrlEl.value) {
+    eipUrlEl.value = previewUrlEl.value; loadEip();
+  }
+  setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 60);
+}
+document.getElementById('editor-preview-btn').addEventListener('click', toggleEditorInlinePreview);
+
+// インラインプレビューのリサイズハンドル
+const eipResizeHandle = document.getElementById('editor-inline-resize');
+let _eirDrag = false, _eirStartX = 0, _eirStartW = 0;
+eipResizeHandle.addEventListener('mousedown', e => {
+  _eirDrag = true; _eirStartX = e.clientX; _eirStartW = eipInline.offsetWidth;
+  eipResizeHandle.classList.add('dragging'); _freezeIframes();
+  document.addEventListener('mousemove', _eirMove);
+  document.addEventListener('mouseup', _eirUp);
+  e.preventDefault();
+});
+function _eirMove(e) {
+  if (!_eirDrag) return;
+  const newW = Math.max(200, Math.min(800, _eirStartW + (_eirStartX - e.clientX)));
+  eipInline.style.width = newW + 'px';
+}
+function _eirUp() {
+  _eirDrag = false; eipResizeHandle.classList.remove('dragging');
+  document.removeEventListener('mousemove', _eirMove);
+  document.removeEventListener('mouseup', _eirUp);
+  _thawIframes();
+  if (monacoEditor) monacoEditor.layout();
+}
+
+// ── THEME (4-way: dark / light / gameboy / op1) ──
+const THEME_CYCLE  = ['dark','light','gameboy','op1'];
+const THEME_LABELS = { dark:'◑', light:'○', gameboy:'GB', op1:'OP' };
+const MONACO_THEME = { dark:'vs-dark', light:'vs', gameboy:'vs-dark', op1:'vs' };
+const btnTheme = document.getElementById('btn-theme');
+
+function applyTheme(name) {
+  if (!XTERM_THEMES[name]) name = 'dark';
+  document.body.classList.remove('light','gameboy','op1');
+  if (name !== 'dark') document.body.classList.add(name);
+  localStorage.setItem('noa_theme', name);
+  // xterm
+  if (typeof term !== 'undefined' && term) term.options.theme = XTERM_THEMES[name];
+  // Monaco
+  if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+    try { monaco.editor.setTheme(MONACO_THEME[name]); } catch {}
+  }
+  // Settings panel buttons
+  document.querySelectorAll('.sp-theme-sel').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === name);
+  });
+  // Header button label
+  btnTheme.textContent = THEME_LABELS[name];
+}
+
+btnTheme.addEventListener('click', () => {
+  const cur = localStorage.getItem('noa_theme') || 'dark';
+  applyTheme(THEME_CYCLE[(THEME_CYCLE.indexOf(cur) + 1) % THEME_CYCLE.length]);
+});
+document.querySelectorAll('.sp-theme-sel').forEach(btn => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+});
+applyTheme(localStorage.getItem('noa_theme') || 'dark');
+
+// ── FILE DROP → @path ──
+const dropOverlay = document.getElementById('drop-overlay');
+const termWrap    = document.getElementById('term-wrap');
+let _dragCounter  = 0;
+
+termWrap.addEventListener('dragenter', e => {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  e.preventDefault(); _dragCounter++;
+  dropOverlay.classList.add('active');
+});
+termWrap.addEventListener('dragleave', () => {
+  if (--_dragCounter <= 0) { _dragCounter = 0; dropOverlay.classList.remove('active'); }
+});
+termWrap.addEventListener('dragover', e => { e.preventDefault(); });
+termWrap.addEventListener('drop', async e => {
+  e.preventDefault(); _dragCounter = 0; dropOverlay.classList.remove('active');
+  const files = [...e.dataTransfer.files];
+  for (const file of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const r = await fetch(`/_upload?token=${localStorage.getItem('noa_token') || ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream', 'x-filename': encodeURIComponent(file.name), 'x-noa-token': localStorage.getItem('noa_token') || '' },
+        body: buf,
+      });
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        throw new Error(`upload failed: ${r.status} ${errBody.error || ''}`);
+      }
+      const { path: fpath } = await r.json();
+      send({ type: 'input', data: '@' + fpath + ' ' });
+    } catch(err) {
+      if (term) term.write(`\r\n\x1b[31m[drop error: ${err.message}]\x1b[0m\r\n`);
+    }
+  }
+});
+
+// ── WELCOME PAGE ──
+document.getElementById('setup-toggle').addEventListener('click', function() {
+  this.classList.toggle('open');
+  document.getElementById('auth-setup').classList.toggle('show');
+});
+document.querySelectorAll('.auth-copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(btn.dataset.copy).catch(() => {});
+    btn.textContent = 'COPIED'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1500);
+  });
+});
+
+// ── AUTH ──
+function tryAuth() {
+  const t = tokEl.value.trim();
+  if (!t) { authErr.textContent = 'token required'; return; }
+  authErr.textContent = '';
+  connect(t);
+}
+document.getElementById('auth-btn').addEventListener('click', tryAuth);
+tokEl.addEventListener('keydown', e => { if (e.key==='Enter') tryAuth(); });
+
+// auto-connect
+const savedTok = paramTok || localStorage.getItem(LS.token);
+if (savedTok) { tokEl.value = savedTok; connect(savedTok); }
+
+// ── PANEL COLLAPSE (Conductor layout) ──
+// Terminal (left)
+function collapseTerminal(col) {
+  document.getElementById('term-wrap').classList.toggle('p-col', col);
+  document.getElementById('term-col-bar').classList.toggle('show', col);
+  mainResizeHandle.style.display = col ? 'none' : '';
+  if (!col) scheduleReflow();
+}
+document.getElementById('term-col-btn').addEventListener('click', () => collapseTerminal(true));
+document.getElementById('term-col-bar').addEventListener('click', () => collapseTerminal(false));
+
+// Editor (center)
+function collapseEditor(col) {
+  document.getElementById('editor-main').classList.toggle('p-col', col);
+  document.getElementById('ed-col-bar').classList.toggle('show', col);
+  if (!col && monacoEditor) setTimeout(() => monacoEditor.layout(), 60);
+}
+document.getElementById('ed-col-btn').addEventListener('click', () => collapseEditor(true));
+document.getElementById('ed-col-bar').addEventListener('click', () => collapseEditor(false));
+
+// Right pane (whole column)
+function collapseRightPane(col) {
+  document.getElementById('right-pane').classList.toggle('p-col', col);
+  document.getElementById('right-col-bar').classList.toggle('show', col);
+  rightResizeHandle.style.display = col ? 'none' : '';
+  if (!col && monacoEditor) setTimeout(() => monacoEditor.layout(), 60);
+}
+document.getElementById('right-col-bar').addEventListener('click', () => collapseRightPane(false));
+
+// File tree inside right pane (vertical collapse)
+function collapseFileTree(col) {
+  document.getElementById('ft-wrap').classList.toggle('p-col', col);
+  document.getElementById('right-split-handle').style.display = col ? 'none' : '';
+  const btn = document.getElementById('ft-col-btn');
+  if (btn) btn.textContent = col ? '▼' : '▲';
+}
+document.getElementById('ft-col-btn').addEventListener('click', () => {
+  const collapsed = document.getElementById('ft-wrap').classList.contains('p-col');
+  collapseFileTree(!collapsed);
+});
+// collapsed p-header クリックでも展開
+document.querySelector('#ft-wrap .p-header').addEventListener('click', (e) => {
+  if (!document.getElementById('ft-wrap').classList.contains('p-col')) return;
+  if (e.target.closest('#ft-col-btn')) return;
+  collapseFileTree(false);
+});
+
+// Preview pane inside right pane (vertical collapse)
+function collapsePreviewPane(col) {
+  document.getElementById('preview-pane').classList.toggle('p-col', col);
+  document.getElementById('right-split-handle').style.display = col ? 'none' : '';
+  const btn = document.getElementById('preview-col-btn');
+  if (btn) btn.textContent = col ? '▲' : '▼';
+}
+document.getElementById('preview-col-btn').addEventListener('click', () => {
+  const collapsed = document.getElementById('preview-pane').classList.contains('p-col');
+  collapsePreviewPane(!collapsed);
+});
+// collapsed bar クリックでも展開
+document.querySelector('#preview-pane .preview-bar').addEventListener('click', (e) => {
+  if (!document.getElementById('preview-pane').classList.contains('p-col')) return;
+  if (e.target.closest('#preview-col-btn')) return; // ボタン自身はそっちで処理
+  collapsePreviewPane(false);
+});
+
+// Legacy compat stubs
+function _syncAbIcons() {}
+function setActivityPanel(name) {
+  if (name === 'files') { initMonaco(); if (document.getElementById('file-tree').childElementCount === 0) _doLoadFileTree(); }
+}
+// _activePanel declared in STATE section above
+
+// ── SETTINGS OVERLAY ──
+function openSettings() {
+  settingsOverlay.classList.add('show');
+}
+function closeSettings() {
+  settingsOverlay.classList.remove('show');
+}
+btnSettings.addEventListener('click', () => {
+  settingsOverlay.classList.contains('show') ? closeSettings() : openSettings();
+});
+settingsOverlay.addEventListener('click', e => {
+  if (e.target === settingsOverlay) closeSettings();
+});
+document.getElementById('settings-close-btn').addEventListener('click', closeSettings);
+
+// 設定パネルのボタン
+document.getElementById('sp-fi-btn').addEventListener('click', () => {
+  setFont(1); const el = document.getElementById('sp-font-val'); if (el) el.textContent = fontSize;
+});
+document.getElementById('sp-fd-btn').addEventListener('click', () => {
+  setFont(-1); const el = document.getElementById('sp-font-val'); if (el) el.textContent = fontSize;
+});
+document.getElementById('sp-efi-btn').addEventListener('click', () => {
+  setEditorFontSize(1); const el = document.getElementById('sp-efont-val'); if (el) el.textContent = _editorFontSize;
+});
+document.getElementById('sp-efd-btn').addEventListener('click', () => {
+  setEditorFontSize(-1); const el = document.getElementById('sp-efont-val'); if (el) el.textContent = _editorFontSize;
+});
+</script>
+</body>
+</html>
