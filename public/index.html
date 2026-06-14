@@ -2406,19 +2406,22 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
 
 <script>
 (function() {
-  const ctxMenu   = document.getElementById('ft-ctx');
-  let _ctxTarget  = null; // { path, name, isDir }
+  const ctxMenu  = document.getElementById('ft-ctx');
+  let _ctxTarget = null;
+  const _undoStack = []; // { type:'delete'|'rename', ... }
 
-  // どこかクリックしたら閉じる
   document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+
+  function _tok() {
+    return localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
+  }
 
   window._ftShowCtx = function(e, item) {
     e.preventDefault();
     e.stopPropagation();
     _ctxTarget = item;
-    // 画面端に被らないよう調整
     const x = Math.min(e.clientX, window.innerWidth  - 160);
-    const y = Math.min(e.clientY, window.innerHeight - 90);
+    const y = Math.min(e.clientY, window.innerHeight - 100);
     ctxMenu.style.left    = x + 'px';
     ctxMenu.style.top     = y + 'px';
     ctxMenu.style.display = 'block';
@@ -2427,18 +2430,20 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
   document.getElementById('ft-ctx-rename').addEventListener('click', async () => {
     if (!_ctxTarget) return;
     ctxMenu.style.display = 'none';
-    const newName = prompt('新しいファイル名:', _ctxTarget.name);
-    if (!newName || newName === _ctxTarget.name) return;
-    const tok = localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
+    const oldName = _ctxTarget.name;
+    const newName = prompt('新しいファイル名:', oldName);
+    if (!newName || newName === oldName) return;
     try {
-      const r = await fetch(`/_rename?token=${encodeURIComponent(tok)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`/_rename?token=${encodeURIComponent(_tok())}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: _ctxTarget.path, name: newName })
       });
       const d = await r.json();
-      if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
-      else alert('リネーム失敗: ' + d.error);
+      if (d.ok) {
+        const dir = _ctxTarget.path.substring(0, _ctxTarget.path.lastIndexOf('/')) || '/';
+        _undoStack.push({ type: 'rename', path: dir + '/' + newName, oldName });
+        window._doLoadFileTree && window._doLoadFileTree();
+      } else alert('リネーム失敗: ' + d.error);
     } catch(e) { alert('エラー: ' + e.message); }
   });
 
@@ -2446,17 +2451,45 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     if (!_ctxTarget) return;
     ctxMenu.style.display = 'none';
     if (!confirm(`"${_ctxTarget.name}" を削除しますか？`)) return;
-    const tok = localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
     try {
-      const r = await fetch(`/_delete?token=${encodeURIComponent(tok)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`/_delete?token=${encodeURIComponent(_tok())}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: _ctxTarget.path })
       });
       const d = await r.json();
-      if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
-      else alert('削除失敗: ' + d.error);
+      if (d.ok) {
+        _undoStack.push({ type: 'delete', trashPath: d.trashPath, originalPath: _ctxTarget.path });
+        window._doLoadFileTree && window._doLoadFileTree();
+      } else alert('削除失敗: ' + d.error);
     } catch(e) { alert('エラー: ' + e.message); }
+  });
+
+  // Cmd+Z: Undo
+  document.addEventListener('keydown', async e => {
+    if (!e.metaKey || e.key !== 'z' || _undoStack.length === 0) return;
+    // ターミナルへのフォーカス中は除外（xterm.jsが処理する）
+    if (document.activeElement?.classList?.contains('xterm-helper-textarea')) return;
+    e.preventDefault();
+    const op = _undoStack.pop();
+    try {
+      if (op.type === 'delete') {
+        const r = await fetch(`/_restore?token=${encodeURIComponent(_tok())}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trashPath: op.trashPath, originalPath: op.originalPath })
+        });
+        const d = await r.json();
+        if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+        else { alert('復元失敗: ' + d.error); _undoStack.push(op); }
+      } else if (op.type === 'rename') {
+        const r = await fetch(`/_rename?token=${encodeURIComponent(_tok())}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: op.path, name: op.oldName })
+        });
+        const d = await r.json();
+        if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+        else { alert('Undo失敗: ' + d.error); _undoStack.push(op); }
+      }
+    } catch(e) { alert('エラー: ' + e.message); _undoStack.push(op); }
   });
 })();
 </script>

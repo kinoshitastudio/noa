@@ -142,13 +142,21 @@ app.post('/_upload', requireAuth, express.raw({ type: '*/*', limit: '50mb' }), (
 });
 
 // ── Claude Code Todos API: hookから受け取り全WSクライアントへブロードキャスト ──
-let _lastTodos = {}; // { project: todos[] }
+const TODOS_PATH = path.join(os.homedir(), '.noa_todos.json');
+let _lastTodos = {};
+try { _lastTodos = JSON.parse(fs.readFileSync(TODOS_PATH, 'utf8')); } catch {}
+
+function _saveTodos() {
+  try { fs.writeFileSync(TODOS_PATH, JSON.stringify(_lastTodos), 'utf8'); } catch {}
+}
+
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   const token = req.query.token || req.headers['x-noa-token'] || '';
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
   const todos   = Array.isArray(req.body?.todos) ? req.body.todos : [];
   const project = req.body?.project || 'default';
   _lastTodos[project] = todos;
+  _saveTodos();
   const msg = JSON.stringify({ type: 'todos-update', project, todos });
   wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
   res.json({ ok: true, count: todos.length, project });
@@ -169,18 +177,30 @@ app.post('/_rename', requireAuth, express.json({ limit: '4kb' }), (req, res) => 
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── ファイル操作API: 削除 ────────────────────────────────────────
+// ── ファイル操作API: 削除（ゴミ箱移動） ─────────────────────────
+const TRASH_DIR = path.join(os.homedir(), '.noa_trash');
+fs.mkdirSync(TRASH_DIR, { recursive: true });
+
 app.post('/_delete', requireAuth, express.json({ limit: '4kb' }), (req, res) => {
   const { path: relPath } = req.body || {};
   if (!relPath) return res.status(400).json({ error: 'Missing path' });
   try {
-    const absPath = safeResolvePath(relPath);
-    const stat = fs.statSync(absPath);
-    if (stat.isDirectory()) {
-      fs.rmdirSync(absPath); // 空ディレクトリのみ
-    } else {
-      fs.unlinkSync(absPath);
-    }
+    const absPath  = safeResolvePath(relPath);
+    const name     = path.basename(absPath);
+    const trashPath = path.join(TRASH_DIR, `${Date.now()}_${name}`);
+    fs.renameSync(absPath, trashPath);
+    res.json({ ok: true, trashPath }); // trashPath をクライアントに返してUndoに使う
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ファイル操作API: 復元（Undo用） ─────────────────────────────
+app.post('/_restore', requireAuth, express.json({ limit: '4kb' }), (req, res) => {
+  const { trashPath, originalPath } = req.body || {};
+  if (!trashPath || !originalPath) return res.status(400).json({ error: 'Missing params' });
+  if (!trashPath.startsWith(TRASH_DIR)) return res.status(403).json({ error: 'Access denied' });
+  try {
+    const absOriginal = safeResolvePath(originalPath);
+    fs.renameSync(trashPath, absOriginal);
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
