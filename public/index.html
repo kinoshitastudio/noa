@@ -92,81 +92,143 @@ body.gameboy .sp-panel{border-radius:0!important}
 body.gameboy #btn-new svg{stroke:#f0ca00}
 body.gameboy #btn-mic svg{stroke:#f04000}
 
-/* ── OP-1 ── */
+/* ══════════════════════════════════════════════
+   OP-1 テーマ — Teenage Engineering 実機準拠
+   ══════════════════════════════════════════════ */
 body.op1{
-  --bg:#f4f1ea; --bg2:#ede9e0; --bg3:#d8d3c8;
-  --bg-glass:rgba(244,241,234,0.6);
-  --line:rgba(0,0,0,.07); --line2:rgba(0,0,0,.15);
-  --ink:#1a1714; --dim:rgba(26,23,20,.56); --faint:rgba(26,23,20,.28);
-  --accent:#ff6b35; --accent2:rgba(255,107,53,.1);
-  --danger:#d42020; --ok:#3aaa5c;
-  --radius:6px; --radius-sm:4px;
+  /* 本体カラー: 暖かいクリーム白 (OP-1 プラスチック) */
+  --bg:#F0EBE0; --bg2:#E4DDD0; --bg3:#CEC6B4;
+  --bg-glass:rgba(240,235,224,0.7);
+  --line:rgba(60,50,35,.09); --line2:rgba(60,50,35,.18);
+  --ink:#1C1814; --dim:rgba(28,24,20,.55); --faint:rgba(28,24,20,.3);
+  /* キーカラー: OP-1 実機そのまま */
+  --op-orange:#FF4500; --op-green:#00B05A; --op-blue:#3B7AFF; --op-yellow:#F5C400;
+  --accent:#FF4500; --accent2:rgba(255,69,0,.1);
+  --danger:#D42020; --ok:#00B05A;
+  --radius:5px; --radius-sm:3px;
   --blur:blur(24px) saturate(200%);
 }
-/* ヘッダー: OP-1 本体（ダーク）*/
+/* マット質感: SVG ノイズオーバーレイ */
+body.op1::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9994;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.028;mix-blend-mode:multiply;
+}
+/* ─── ヘッダー: OP-1 本体ダークグレー ─── */
 body.op1 header{
-  background:#232120!important;
+  background:#1E1C1A!important;
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
   border-bottom:none!important;
-  box-shadow:0 2px 0 #111,0 4px 16px rgba(0,0,0,.3);
+  box-shadow:0 3px 0 #0D0C0B,0 5px 20px rgba(0,0,0,.4);
   height:50px!important;
 }
-body.op1 .logo{color:#f4f1ea!important;font-size:.75rem!important}
-body.op1 .logo em{color:#ff6b35!important}
-body.op1 #sess-label{color:rgba(244,241,234,.65)!important}
-/* エンコーダーノブ風ボタン */
-body.op1 .hd-group{background:#181614!important;border-radius:40px!important;padding:4px 6px!important;border:1px solid #444!important}
+body.op1 .logo{color:#F0EBE0!important;font-size:.75rem!important;letter-spacing:.5em!important}
+body.op1 .logo em{color:var(--op-orange)!important}
+body.op1 #sess-label{color:rgba(240,235,224,.55)!important;font-size:.6rem!important}
+/* ─── エンコーダーノブ（丸ボタン）─── */
+body.op1 .hd-group{
+  background:#141210!important;border-radius:40px!important;
+  padding:4px 6px!important;border:1px solid #3A3633!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
 body.op1 .hd-btn{
-  border-radius:50%!important;
-  width:30px!important;height:30px!important;
-  background:radial-gradient(circle at 38% 32%, #555, #1a1a1a)!important;
-  box-shadow:0 3px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18)!important;
-  border:1px solid #444!important;
-  color:rgba(255,255,255,.7)!important;
-  transition:box-shadow .15s,transform .1s!important;
+  border-radius:50%!important;width:30px!important;height:30px!important;
+  background:radial-gradient(circle at 35% 28%, #5C5856, #1E1C1A)!important;
+  box-shadow:0 4px 8px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.14) inset,0 -2px 0 rgba(0,0,0,.5) inset!important;
+  border:1px solid #3A3633!important;color:rgba(240,235,224,.65)!important;
+  transition:box-shadow .12s,transform .08s!important;
 }
 body.op1 .hd-btn:hover{
-  box-shadow:0 3px 10px rgba(255,107,53,.5),inset 0 1px 0 rgba(255,255,255,.18)!important;
-  transform:rotate(15deg)!important;
-  color:#fff!important;
+  box-shadow:0 4px 12px rgba(255,69,0,.4),0 1px 0 rgba(255,255,255,.22) inset,0 -2px 0 rgba(0,0,0,.5) inset!important;
+  transform:rotate(12deg)!important;color:#fff!important;
 }
 body.op1 .hd-btn.active{
-  box-shadow:0 0 0 2px #ff6b35,0 3px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18)!important;
-  color:#ff6b35!important;
+  background:radial-gradient(circle at 35% 28%, #7A5040, #2A1A14)!important;
+  box-shadow:0 0 0 2px var(--op-orange),0 2px 8px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.1) inset!important;
+  color:var(--op-orange)!important;
 }
-/* ターミナル: OLED ブラック */
+/* OP-1 ファンクションドット（4色）*/
+body.op1 header::after{
+  content:'';position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  width:7px;height:7px;border-radius:50%;
+  background:var(--op-orange);
+  box-shadow:-12px 0 0 var(--op-yellow),-24px 0 0 var(--op-green),-36px 0 0 var(--op-blue);
+}
+/* ─── ターミナル: OLED ブラック ─── */
 body.op1 #term-wrap{
   background:#080706!important;
-  border-right:1px solid rgba(255,255,255,.06)!important;
-  box-shadow:inset 0 0 60px rgba(0,0,0,.8);
+  border-right:2px solid rgba(255,255,255,.04)!important;
+  box-shadow:inset 0 0 80px rgba(0,0,0,.9);
 }
-/* パネル: Liquid Glass */
-body.op1 #editor-main{
-  background:rgba(244,241,234,.35)!important;
-  backdrop-filter:blur(20px) saturate(180%)!important;
-  -webkit-backdrop-filter:blur(20px) saturate(180%)!important;
-}
+/* ─── パネル本体: OP-1 クリーム ─── */
+body.op1 #editor-main{background:#F0EBE0!important}
 body.op1 #right-pane{
-  background:rgba(244,241,234,.45)!important;
-  backdrop-filter:blur(24px) saturate(200%)!important;
-  -webkit-backdrop-filter:blur(24px) saturate(200%)!important;
-  border-left:1px solid rgba(255,255,255,.7)!important;
+  background:#EBE5D8!important;
+  border-left:1px solid rgba(60,50,35,.12)!important;
 }
+/* ─── パネルヘッダー: 色帯 4px ─── */
 body.op1 .p-header{
-  background:rgba(244,241,234,.55)!important;
-  backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;
-  border-bottom:1px solid rgba(255,255,255,.5)!important;
+  background:#E4DDD0!important;
+  border-bottom:1px solid rgba(60,50,35,.1)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
 }
-/* 各パネルに色帯（OP-1 のキーカラー） */
-body.op1 #term-wrap .p-header{border-top:2px solid #ff6b35!important}
-body.op1 #editor-main .p-header{border-top:2px solid #4caf8a!important}
-body.op1 #right-pane .p-header{border-top:2px solid #5b8cff!important}
-/* OP-1 のファンクションドット（ヘッダー右端） */
-body.op1 header::after{
-  content:'';position:absolute;right:12px;top:50%;transform:translateY(-50%);
-  width:6px;height:6px;border-radius:50%;
-  background:#ff6b35;box-shadow:-10px 0 0 #f0c020,-20px 0 0 #4caf8a,-30px 0 0 #5b8cff;
+body.op1 #term-wrap .p-header{
+  background:#141210!important;
+  border-top:4px solid var(--op-orange)!important;
+  border-bottom:1px solid rgba(255,255,255,.06)!important;
 }
+body.op1 #editor-main .p-header{border-top:4px solid var(--op-green)!important}
+body.op1 #right-pane .p-header{border-top:4px solid var(--op-blue)!important}
+/* パネルラベルを色帯と合わせる */
+body.op1 #term-wrap .ph-label{color:var(--op-orange)!important;letter-spacing:.25em!important}
+body.op1 #editor-main .ph-label{color:var(--op-green)!important;letter-spacing:.25em!important}
+body.op1 #right-pane .ph-label{color:var(--op-blue)!important;letter-spacing:.25em!important}
+body.op1 .p-colbtn{color:rgba(28,24,20,.35)!important}
+body.op1 #term-wrap .p-colbtn{color:rgba(240,235,224,.4)!important}
+/* ─── エディタツールバーボタン: 物理キー風 ─── */
+body.op1 .etbtn{
+  background:linear-gradient(180deg,#EDE7DA 0%,#D8D1C0 100%)!important;
+  border:1px solid rgba(60,50,35,.25)!important;
+  border-bottom-color:rgba(60,50,35,.45)!important;
+  border-radius:4px!important;
+  box-shadow:0 2px 0 rgba(60,50,35,.35),0 1px 3px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.7)!important;
+  color:#1C1814!important;
+  font-weight:700!important;letter-spacing:.1em!important;
+  transition:box-shadow .08s,transform .08s!important;
+}
+body.op1 .etbtn:hover{
+  background:linear-gradient(180deg,#F5EEE2 0%,#E0D9C8 100%)!important;
+  box-shadow:0 3px 0 rgba(60,50,35,.35),0 2px 6px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.85)!important;
+}
+body.op1 .etbtn:active{
+  box-shadow:0 0 0 rgba(60,50,35,.3),inset 0 1px 2px rgba(0,0,0,.2)!important;
+  transform:translateY(2px)!important;
+}
+/* ─── CCT タスクパネル ─── */
+body.op1 #cc-todos{background:#E8E2D5!important}
+body.op1 .cct-tabs{background:#DDD7CA!important;border-bottom:1px solid rgba(60,50,35,.12)!important}
+body.op1 .cct-tab{
+  background:linear-gradient(180deg,#EDE7DA 0%,#D8D1C0 100%)!important;
+  border:1px solid rgba(60,50,35,.22)!important;
+  border-bottom-color:rgba(60,50,35,.4)!important;
+  box-shadow:0 1px 0 rgba(60,50,35,.3),inset 0 1px 0 rgba(255,255,255,.6)!important;
+  border-radius:3px!important;color:#1C1814!important;
+}
+body.op1 .cct-tab.active{
+  background:var(--op-orange)!important;border-color:rgba(180,40,0,.6)!important;
+  color:#fff!important;
+  box-shadow:0 2px 4px rgba(255,69,0,.35),inset 0 1px 0 rgba(255,255,255,.3)!important;
+}
+body.op1 .cct-tab:active{box-shadow:0 0 0 rgba(60,50,35,.2),inset 0 1px 2px rgba(0,0,0,.15)!important}
+body.op1 .cct-progress-fill{background:var(--op-orange)!important}
+body.op1 .cct-item{border-bottom:1px solid rgba(60,50,35,.08)!important}
+/* ─── ファイルツリー ─── */
+body.op1 .ft-item:hover{background:rgba(60,50,35,.06)!important}
+body.op1 .ft-item.ft-active{
+  background:rgba(255,69,0,.08)!important;
+  border-left:2px solid var(--op-orange)!important;
+}
+body.op1 .ft-name{color:#1C1814!important}
 /* ─── OP-1 設定パネル: iOS 26 Liquid Glass ─── */
 body.op1 #settings-overlay{
   background:rgba(100,90,80,.18)!important;
