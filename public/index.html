@@ -1752,6 +1752,15 @@ function initTerm() {
 
   term.focus();
 
+  // モバイル: ターミナルエリアをタップしたら必ずフォーカスを戻す
+  termEl.addEventListener('touchend', (e) => {
+    // リンク・ボタン以外のタップでフォーカス
+    if (!e.target.closest('a, button, [data-k]')) {
+      e.preventDefault();
+      term.focus();
+    }
+  }, { passive: false });
+
   new ResizeObserver(() => {
     requestAnimationFrame(() => { try { fit.fit(); sendResize(); } catch {} });
   }).observe(termEl);
@@ -3069,7 +3078,11 @@ document.getElementById('cct-add-input').addEventListener('keydown', e => {
     setTimeout(() => inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   };
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onVVResize);
-  inp.addEventListener('blur', () => { panel.style.paddingBottom = ''; });
+  inp.addEventListener('blur', () => {
+    panel.style.paddingBottom = '';
+    // タスク入力を閉じたらターミナルにフォーカスを戻す
+    setTimeout(() => { if (typeof term !== 'undefined' && term) term.focus(); }, 100);
+  });
 })();
 
 function _updateTermTop() {
