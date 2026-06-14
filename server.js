@@ -141,6 +141,18 @@ app.post('/_upload', requireAuth, express.raw({ type: '*/*', limit: '50mb' }), (
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Claude Code Todos API: hookから受け取り全WSクライアントへブロードキャスト ──
+let _lastTodos = [];
+app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
+  const token = req.query.token || req.headers['x-noa-token'] || '';
+  if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
+  const todos = Array.isArray(req.body?.todos) ? req.body.todos : [];
+  _lastTodos = todos;
+  const msg = JSON.stringify({ type: 'todos-update', todos });
+  wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
+  res.json({ ok: true, count: todos.length });
+});
+
 // ── session store ───────────────────────────────────────────────
 // sessions: Map<id, { pty, clients: Set<ws>, scrollback: string[], name, created }>
 const sessions = new Map();
@@ -234,6 +246,7 @@ wss.on('connection', ws => {
       }
       authed = true;
       ws.send(JSON.stringify({ type: 'auth', ok: true, sessions: sessionList() }));
+      if (_lastTodos.length > 0) ws.send(JSON.stringify({ type: 'todos-update', todos: _lastTodos }));
       return;
     }
 
@@ -415,6 +428,55 @@ wss.on('connection', ws => {
           ws.send(JSON.stringify({ type: 'tailscale-info', ip, token }));
         } catch {
           ws.send(JSON.stringify({ type: 'tailscale-info', ip: null }));
+        }
+        break;
+      }
+
+      case 'cc-history': {
+        if (!authed) break;
+        try {
+          const histPath = os.homedir() + '/.claude/history.jsonl';
+          const raw = fs.readFileSync(histPath, 'utf8');
+          const entries = raw.trim().split('\n')
+            .filter(l => l.trim())
+            .slice(-300)
+            .reverse()
+            .map(l => {
+              try {
+                const d = JSON.parse(l);
+                return {
+                  display: d.display || '',
+                  timestamp: d.timestamp || 0,
+                  project: (d.project || '').split('/').pop()
+                };
+              } catch { return null; }
+            })
+            .filter(Boolean)
+            .filter(d => d.display && !d.display.startsWith('['))
+            .slice(0, 50);
+          ws.send(JSON.stringify({ type: 'cc-history', entries }));
+        } catch(e) {
+          ws.send(JSON.stringify({ type: 'cc-history', entries: [], error: e.message }));
+        }
+        break;
+      }
+
+      case 'shell-history': {
+        if (!authed) break;
+        try {
+          const histFile = process.env.HISTFILE ||
+            (fs.existsSync(os.homedir() + '/.zsh_history') ? os.homedir() + '/.zsh_history' : os.homedir() + '/.bash_history');
+          const raw = fs.readFileSync(histFile, 'latin1');
+          const lines = raw.split('\n').filter(l => l.trim());
+          // zsh extended_history形式 ": timestamp:duration;command" をパース
+          const cmds = lines
+            .map(l => l.replace(/^: \d+:\d+;/, '').trim())
+            .filter(l => l.length > 0)
+            .slice(-40)
+            .reverse();
+          ws.send(JSON.stringify({ type: 'shell-history', cmds }));
+        } catch(e) {
+          ws.send(JSON.stringify({ type: 'shell-history', cmds: [], error: e.message }));
         }
         break;
       }

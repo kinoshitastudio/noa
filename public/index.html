@@ -166,25 +166,52 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 #drop-overlay.active{display:flex}
 .xterm,.xterm-viewport,.xterm-screen{height:100%!important}
 
+/* ── Claude Code history panel ── */
+#cc-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#cc-history.open{max-height:320px}
+.cch-item{display:flex;align-items:flex-start;gap:8px;padding:.38rem .75rem;
+  border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.4}
+.cch-time{flex-shrink:0;color:var(--faint);font-size:.54rem;padding-top:1px;white-space:nowrap}
+.cch-text{flex:1;color:var(--dim);word-break:break-all;font-family:'Space Mono',monospace}
+.cch-empty{padding:.5rem .75rem;color:var(--faint);font-size:.58rem;font-family:'Space Mono',monospace}
+
+/* ── Claude Code todo panel ── */
+#cc-todos{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#cc-todos.open{max-height:240px}
+.cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
+  border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
+.cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;font-size:.7rem;
+  transition:background var(--trans),border-color var(--trans)}
+.cct-check.pending{color:transparent}
+.cct-check.in_progress{border-color:var(--accent);color:var(--accent);font-size:.6rem}
+.cct-check.completed{background:var(--ok);border-color:var(--ok);color:#000}
+.cct-label{flex:1;color:var(--dim);word-break:break-all;font-family:'Space Mono',monospace}
+.cct-label.in_progress{color:var(--ink);font-weight:bold}
+.cct-label.completed{color:var(--faint);text-decoration:line-through}
+
 /* ── task history panel ── */
 #task-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
-  max-height:0;transition:max-height .22s cubic-bezier(.4,0,.2,1);
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent;flex-shrink:0}
-#task-history.open{max-height:160px}
+#task-history.open{max-height:200px}
 #task-history::-webkit-scrollbar{width:3px}
 #task-history::-webkit-scrollbar-thumb{background:var(--line2)}
-.th-item{display:flex;align-items:flex-start;gap:6px;padding:.35rem .7rem;
-  border-bottom:1px solid var(--line);font-size:.6rem;letter-spacing:.02em;
+.th-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
+  border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.4;
   animation:thSlide .15s ease}
 @keyframes thSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.th-dot{flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-top:3px;
+.th-dot{flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-top:4px;
   background:var(--faint);transition:background var(--trans)}
 .th-dot.running{background:var(--accent);animation:pulse .9s infinite}
 .th-dot.done{background:var(--ok)}
 .th-dot.err{background:var(--danger)}
-.th-cmd{flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-family:'Space Mono',monospace}
-.th-time{flex-shrink:0;color:var(--faint);font-size:.54rem}
+.th-cmd{flex:1;color:var(--dim);word-break:break-all;font-family:'Space Mono',monospace}
+.th-time{flex-shrink:0;color:var(--faint);font-size:.54rem;padding-top:1px}
 
 /* ── file editing highlight (watch-dir) ── */
 .ft-item.ft-editing{color:var(--accent)!important;
@@ -463,7 +490,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   #term-wrap,#editor-main,#right-pane{
     display:none!important;flex:none;width:100%!important;min-width:0!important}
   #term-wrap.mob-active,#editor-main.mob-active,#right-pane.mob-active{
-    display:flex!important;flex:1;min-height:0}
+    display:flex!important;flex-direction:column;flex:1;min-height:0}
   #mobkeys{display:flex}
 }
 </style>
@@ -601,9 +628,15 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <div class="p-header">
         <div id="term-col-btn" class="p-colbtn" title="端末を畳む">◀</div>
         <span class="ph-label">TERM</span>
-        <div id="th-toggle-btn" class="p-colbtn" title="タスク履歴" style="margin-left:auto;font-size:.7rem">≡</div>
+        <div id="cc-todo-btn" class="p-colbtn" title="Claude Codeタスク" style="margin-left:auto;font-size:.75rem;display:none">⬡</div>
+        <div id="cc-hist-btn" class="p-colbtn" title="Claude Code会話履歴" style="font-size:.8rem">↺</div>
+        <div id="th-toggle-btn" class="p-colbtn" title="シェル履歴" style="font-size:.68rem">&gt;_</div>
       </div>
-      <!-- タスク履歴パネル（Conductor風） -->
+      <!-- Claude Code タスクパネル -->
+      <div id="cc-todos"></div>
+      <!-- Claude Code 会話履歴パネル -->
+      <div id="cc-history"></div>
+      <!-- シェル履歴パネル -->
       <div id="task-history"></div>
       <div id="term-el"></div>
       <div id="voice-badge"><span id="voice-text"></span><canvas id="voice-wave" width="240" height="44"></canvas><small>Enter で停止/再開 · 無音3秒で自動停止</small></div>
@@ -961,6 +994,32 @@ function onMsg(msg) {
       // cwdをファイルツリーでハイライト
       if (msg.cwd && _ftFileRoot) _ftHighlightCwd(msg.cwd);
       break;
+    case 'todos-update': {
+      const ccTodos = document.getElementById('cc-todos');
+      const ccBtn   = document.getElementById('cc-todo-btn');
+      if (!ccTodos || !Array.isArray(msg.todos)) break;
+      const todos = msg.todos;
+      ccTodos.innerHTML = '';
+      if (todos.length === 0) {
+        ccBtn.style.display = 'none';
+        ccTodos.classList.remove('open');
+        setTimeout(_updateTermTop, 230);
+        break;
+      }
+      todos.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'cct-item';
+        const st = t.status || 'pending';
+        const checkIcon = st === 'completed' ? '✓' : st === 'in_progress' ? '▶' : '';
+        item.innerHTML = `<span class="cct-check ${st}">${checkIcon}</span><span class="cct-label ${st}">${(t.content || t.description || '').replace(/</g,'&lt;')}</span>`;
+        ccTodos.appendChild(item);
+      });
+      ccBtn.style.display = '';
+      const hasActive = todos.some(t => t.status === 'in_progress');
+      if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
+      setTimeout(_updateTermTop, 230);
+      break;
+    }
     case 'tailscale-info': {
       const urlEl = document.getElementById('sp-remote-url');
       const copyBtn = document.getElementById('sp-remote-copy');
@@ -977,6 +1036,16 @@ function onMsg(msg) {
       } else {
         urlEl.textContent = 'Tailscale not connected';
       }
+      break;
+    }
+    case 'shell-history': {
+      _thRender(msg.cmds);
+      setTimeout(_updateTermTop, 280);
+      break;
+    }
+    case 'cc-history': {
+      _cchRender(msg.entries);
+      setTimeout(_updateTermTop, 280);
       break;
     }
   }
@@ -1044,7 +1113,6 @@ function initTerm() {
 
   term.onData(d => {
     send({ type:'input', data:d });
-    _thOnInput(d);
     if (d === '\r' || d === '\n') {
       setTimeout(() => { if (authed) send({ type: 'git-info' }); }, 600);
     }
@@ -1063,7 +1131,6 @@ function initTerm() {
   const _origWrite = term.write.bind(term);
   term.write = function(data) {
     const raw = typeof data === 'string' ? data : new TextDecoder().decode(data);
-    _thOnOutput(raw);
 
     // ANSI除去してURLを_knownUrlsに蓄積
     _rawBuf += raw;
@@ -2029,73 +2096,97 @@ if (savedTok) { tokEl.value = savedTok; connect(savedTok); }
 // Terminal (left)
 // ── タスク履歴パネル ──────────────────────────────────────────────
 const taskHistoryEl = document.getElementById('task-history');
+const ccHistoryEl   = document.getElementById('cc-history');
 const thToggleBtn   = document.getElementById('th-toggle-btn');
-let _thOpen = false;
-let _currentCmd = '';
-let _thItems = []; // { cmd, time, status, el }
+let _thOpen   = false;
+let _cchOpen  = false;
 
 function _updateTermTop() {
   const termEl = document.getElementById('term-el');
   if (!termEl) return;
-  const thH = _thOpen ? taskHistoryEl.scrollHeight : 0;
-  termEl.style.top = (28 + thH) + 'px';
+  const ccTodosEl = document.getElementById('cc-todos');
+  const ccOpen = ccTodosEl && ccTodosEl.classList.contains('open');
+  const ccH  = ccOpen  ? Math.min(ccTodosEl.scrollHeight, 240) : 0;
+  const cchH = _cchOpen ? Math.min(ccHistoryEl.scrollHeight, 320) : 0;
+  const thH  = _thOpen  ? Math.min(taskHistoryEl.scrollHeight, 200) : 0;
+  termEl.style.top = (28 + ccH + cchH + thH) + 'px';
   if (fit) try { fit.fit(); } catch {}
 }
 
-function _thAddCmd(cmd) {
-  cmd = cmd.trim();
-  if (!cmd) return;
-  const time = new Date().toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  const item = document.createElement('div');
-  item.className = 'th-item';
-  item.innerHTML = `<span class="th-dot running"></span><span class="th-cmd">${cmd.replace(/</g,'&lt;')}</span><span class="th-time">${time}</span>`;
-  taskHistoryEl.appendChild(item);
-  taskHistoryEl.scrollTop = taskHistoryEl.scrollHeight;
-  const entry = { cmd, el: item, dot: item.querySelector('.th-dot') };
-  _thItems.push(entry);
-  if (_thItems.length > 20) {
-    _thItems.shift();
-    taskHistoryEl.removeChild(taskHistoryEl.firstChild);
-  }
-  return entry;
+function _closeAllPanels() {
+  document.getElementById('cc-todos').classList.remove('open');
+  document.getElementById('cc-todo-btn').style.opacity = '0.5';
+  ccHistoryEl.classList.remove('open'); _cchOpen = false;
+  document.getElementById('cc-hist-btn').style.color = '';
+  taskHistoryEl.classList.remove('open'); _thOpen = false;
+  thToggleBtn.style.color = '';
 }
 
-function _thDone(entry, ok = true) {
-  if (!entry || !entry.dot) return;
-  entry.dot.classList.remove('running');
-  entry.dot.classList.add(ok ? 'done' : 'err');
+function _thRender(cmds) {
+  taskHistoryEl.innerHTML = '';
+  if (!cmds || cmds.length === 0) {
+    taskHistoryEl.innerHTML = '<div class="th-empty">— 履歴なし —</div>';
+    return;
+  }
+  cmds.forEach(cmd => {
+    const item = document.createElement('div');
+    item.className = 'th-item';
+    item.innerHTML = `<span class="th-dot done"></span><span class="th-cmd">${cmd.replace(/</g,'&lt;')}</span>`;
+    taskHistoryEl.appendChild(item);
+  });
+  taskHistoryEl.scrollTop = 0;
 }
 
-// Enter検出: コマンド追加 → プロンプト戻りで完了
-let _currentEntry = null;
-let _cmdBuf = '';
-// term.onData で入力を捕捉（initTerm後にセット）
-function _thOnInput(d) {
-  if (d === '\r' || d === '\n') {
-    if (_cmdBuf.trim()) {
-      _currentEntry = _thAddCmd(_cmdBuf);
-      if (_thOpen) _updateTermTop();
-    }
-    _cmdBuf = '';
-  } else if (d === '\x7f') { // backspace
-    _cmdBuf = _cmdBuf.slice(0, -1);
-  } else if (d.length === 1 && d >= ' ') {
-    _cmdBuf += d;
+function _cchRender(entries) {
+  ccHistoryEl.innerHTML = '';
+  if (!entries || entries.length === 0) {
+    ccHistoryEl.innerHTML = '<div class="cch-empty">— 履歴なし —</div>';
+    return;
   }
+  entries.forEach(e => {
+    const dt = new Date(e.timestamp);
+    const timeStr = dt.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const item = document.createElement('div');
+    item.className = 'cch-item';
+    item.innerHTML = `<span class="cch-time">${timeStr}</span><span class="cch-text">${e.display.replace(/</g,'&lt;')}</span>`;
+    ccHistoryEl.appendChild(item);
+  });
+  ccHistoryEl.scrollTop = 0;
 }
-// 出力にプロンプト文字列が現れたら完了とみなす
-function _thOnOutput(data) {
-  if (_currentEntry && /[%$#>]\s*$/.test(data.replace(/\x1b\[[^m]*m/g, ''))) {
-    setTimeout(() => _thDone(_currentEntry, true), 200);
-    _currentEntry = null;
+
+document.getElementById('cc-todo-btn').addEventListener('click', () => {
+  const ccTodos = document.getElementById('cc-todos');
+  const willOpen = !ccTodos.classList.contains('open');
+  _closeAllPanels();
+  if (willOpen) {
+    ccTodos.classList.add('open');
+    document.getElementById('cc-todo-btn').style.opacity = '1';
   }
-}
+  setTimeout(_updateTermTop, 230);
+});
+
+document.getElementById('cc-hist-btn').addEventListener('click', () => {
+  const willOpen = !_cchOpen;
+  _closeAllPanels();
+  if (willOpen) {
+    _cchOpen = true;
+    ccHistoryEl.classList.add('open');
+    document.getElementById('cc-hist-btn').style.color = 'var(--accent)';
+    send({ type: 'cc-history' });
+  }
+  setTimeout(_updateTermTop, 280);
+});
 
 thToggleBtn.addEventListener('click', () => {
-  _thOpen = !_thOpen;
-  taskHistoryEl.classList.toggle('open', _thOpen);
-  thToggleBtn.style.color = _thOpen ? 'var(--accent)' : '';
-  setTimeout(_updateTermTop, 230); // transition完了後にrefit
+  const willOpen = !_thOpen;
+  _closeAllPanels();
+  if (willOpen) {
+    _thOpen = true;
+    taskHistoryEl.classList.add('open');
+    thToggleBtn.style.color = 'var(--accent)';
+    send({ type: 'shell-history' });
+  }
+  setTimeout(_updateTermTop, 280);
 });
 
 function collapseTerminal(col) {
