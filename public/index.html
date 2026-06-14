@@ -2669,7 +2669,11 @@ function applyTheme(name) {
   if (name !== 'dark') document.body.classList.add(name);
   localStorage.setItem('noa_theme', name);
   // xterm
-  if (typeof term !== 'undefined' && term) term.options.theme = XTERM_THEMES[name];
+  if (typeof term !== 'undefined' && term) {
+    term.options.theme = XTERM_THEMES[name];
+    try { term.refresh(0, term.rows - 1); } catch {}
+    setTimeout(() => { if (typeof _updateTermTop === 'function') _updateTermTop(); }, 50);
+  }
   // Monaco
   if (typeof monacoEditor !== 'undefined' && monacoEditor) {
     try { monaco.editor.setTheme(MONACO_THEME[name]); } catch {}
