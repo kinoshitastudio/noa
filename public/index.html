@@ -1417,23 +1417,22 @@ function onMsg(msg) {
       // Conductor layout: init editor and file tree immediately on auth
       initMonaco();
       setTimeout(() => _doLoadFileTree(), 300);
-      if (attachId) {
-        // URLに ?s= がある → 既存セッションにアタッチ
+      // プロジェクトセッション復元: proj: 系は全て project-session で統一
+      // (attach と project-session で挙動差があり、attach は _currentSessId を設定しないため不整合が起きていた)
+      const _restoreProj = paramSession
+        || (attachId && attachId.startsWith('proj:') ? attachId.replace(/^proj:/, '') : null)
+        || localStorage.getItem('noa_last_project');
+
+      if (_restoreProj) {
+        window._currentSessId = `proj:${_restoreProj}`;
+        _activeProject = _restoreProj;
+        send({ type:'project-session', name:_restoreProj, cols:term.cols, rows:term.rows });
+      } else if (attachId) {
+        // 通常セッションID (?s=s1 など) → attach
         sessId = attachId;
         send({ type:'attach', id:sessId, cols:term.cols, rows:term.rows });
-      } else if (paramSession) {
-        // ?session=BMBoard → プロジェクト固有 PTY セッション（孤立した Claude 会話）
-        send({ type:'project-session', name:paramSession, cols:term.cols, rows:term.rows });
       } else {
-        // 最後に使ったプロジェクトを復元、なければ新セッション
-        const lastProj = localStorage.getItem('noa_last_project');
-        if (lastProj) {
-          // 既存セッションにアタッチを試みる (新規作成しない)
-          const projSessId = `proj:${lastProj}`;
-          send({ type:'attach', id: projSessId, cols:term.cols, rows:term.rows, name: lastProj });
-        } else {
-          send({ type:'new', cols:term.cols, rows:term.rows });
-        }
+        send({ type:'new', cols:term.cols, rows:term.rows });
       }
       break;
     case 'attached':
@@ -1523,6 +1522,8 @@ function onMsg(msg) {
       _todosData = msg.projects;
       if (msg.paths) _projectPaths = msg.paths;
       _cctUpdateTabs();
+      // アクティブプロジェクトのタスクリストを即描画
+      if (_activeProject) _cctRender(_activeProject);
       setTimeout(_updateTermTop, 230);
       break;
     }
