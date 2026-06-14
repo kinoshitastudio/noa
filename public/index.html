@@ -185,6 +185,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0}
 .cct-tab{padding:2px 7px;font-size:.6rem;border-radius:2px;cursor:pointer;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);font-family:'Space Mono',monospace;white-space:nowrap;line-height:1.6;transition:all var(--trans)}
 .cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.cct-tab-open{padding:2px 5px;font-size:.6rem;cursor:pointer;color:var(--faint);background:none;border:none;line-height:1.6;opacity:.6;transition:opacity var(--trans)}
+.cct-tab-open:hover{opacity:1;color:var(--accent)}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
 .cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
@@ -196,6 +198,14 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-label{flex:1;color:var(--dim);word-break:break-all;font-family:'Space Mono',monospace}
 .cct-label.in_progress{color:var(--ink);font-weight:bold}
 .cct-label.completed{color:var(--faint);text-decoration:line-through}
+
+/* ── file tree context menu ── */
+#ft-ctx{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--line2);border-radius:4px;
+  padding:3px 0;min-width:130px;box-shadow:0 4px 14px rgba(0,0,0,.5);display:none;
+  font-size:.68rem;font-family:'Space Mono',monospace}
+.ft-ctx-item{padding:5px 14px;cursor:pointer;color:var(--ink);white-space:nowrap}
+.ft-ctx-item:hover{background:var(--bg3)}
+.ft-ctx-item.danger{color:var(--danger)}
 
 /* ── task history panel ── */
 #task-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
@@ -806,8 +816,9 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 const WS_URL = `ws://${location.host}`;
 const LS = { token:'noa_token', fontSize:'noa_fs', previewOpen:'noa_po', previewUrl:'noa_pu', panelWidth:'noa_pw' };
 const params   = new URLSearchParams(location.search);
-const attachId = params.get('s');   // URLに ?s=s1 があれば既存セッションにアタッチ
-const paramTok = params.get('token');
+const attachId    = params.get('s');        // URLに ?s=s1 があれば既存セッションにアタッチ
+const paramTok    = params.get('token');
+const paramSession = params.get('session'); // ?session=BMBoard でセッション名を指定
 
 let fontSize = parseInt(localStorage.getItem(LS.fontSize) || '14');
 
@@ -926,8 +937,8 @@ function onMsg(msg) {
         sessId = attachId;
         send({ type:'attach', id:sessId, cols:term.cols, rows:term.rows });
       } else {
-        // 新セッション作成
-        send({ type:'new', cols:term.cols, rows:term.rows });
+        // 新セッション作成（?session= があればその名前を使う）
+        send({ type:'new', cols:term.cols, rows:term.rows, name: paramSession || '' });
       }
       break;
     case 'attached':
@@ -1667,6 +1678,7 @@ function _ftBuildItem(item, depth, parentEl) {
     row.appendChild(ccBtn);
   }
 
+  row.addEventListener('contextmenu', e => window._ftShowCtx && window._ftShowCtx(e, item));
   parentEl.appendChild(row);
 
   if (item.isDir) {
@@ -1726,6 +1738,7 @@ async function _doLoadFileTree() {
   items.forEach(item => _ftBuildItem(item, 0, container));
   send({ type: 'watch-dir', path: '/' });
 }
+window._doLoadFileTree = _doLoadFileTree;
 
 // cwdをファイルツリーでハイライト（cdで移動した場所を黄色表示）
 async function _ftHighlightCwd(absCwd) {
@@ -2116,6 +2129,8 @@ function _cctUpdateTabs() {
     tabsEl.style.display = 'flex';
     tabsEl.innerHTML = '';
     projects.forEach(p => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;align-items:center;gap:1px';
       const tab = document.createElement('div');
       tab.className = 'cct-tab' + (p === _activeProject ? ' active' : '');
       const inProg = (_todosData[p] || []).filter(t => t.status === 'in_progress').length;
@@ -2126,7 +2141,17 @@ function _cctUpdateTabs() {
         _cctRender(p);
         setTimeout(_updateTermTop, 230);
       });
-      tabsEl.appendChild(tab);
+      const openBtn = document.createElement('button');
+      openBtn.className = 'cct-tab-open';
+      openBtn.title = `${p} を新規ウィンドウで開く`;
+      openBtn.textContent = '↗';
+      openBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const tok = localStorage.getItem(LS.token) || '';
+        window.open(`${location.origin}/?token=${encodeURIComponent(tok)}&session=${encodeURIComponent(p)}`, '_blank');
+      });
+      wrap.append(tab, openBtn);
+      tabsEl.appendChild(wrap);
     });
   }
   _cctRender(_activeProject);
@@ -2370,6 +2395,69 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     if (tab) switchPane(tab.dataset.pane);
   });
   switchPane('term');
+})();
+</script>
+
+<!-- ファイルツリー右クリックメニュー -->
+<div id="ft-ctx">
+  <div class="ft-ctx-item" id="ft-ctx-rename">名前変更</div>
+  <div class="ft-ctx-item danger" id="ft-ctx-delete">削除</div>
+</div>
+
+<script>
+(function() {
+  const ctxMenu   = document.getElementById('ft-ctx');
+  let _ctxTarget  = null; // { path, name, isDir }
+
+  // どこかクリックしたら閉じる
+  document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+
+  window._ftShowCtx = function(e, item) {
+    e.preventDefault();
+    e.stopPropagation();
+    _ctxTarget = item;
+    // 画面端に被らないよう調整
+    const x = Math.min(e.clientX, window.innerWidth  - 160);
+    const y = Math.min(e.clientY, window.innerHeight - 90);
+    ctxMenu.style.left    = x + 'px';
+    ctxMenu.style.top     = y + 'px';
+    ctxMenu.style.display = 'block';
+  };
+
+  document.getElementById('ft-ctx-rename').addEventListener('click', async () => {
+    if (!_ctxTarget) return;
+    ctxMenu.style.display = 'none';
+    const newName = prompt('新しいファイル名:', _ctxTarget.name);
+    if (!newName || newName === _ctxTarget.name) return;
+    const tok = localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
+    try {
+      const r = await fetch(`/_rename?token=${encodeURIComponent(tok)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: _ctxTarget.path, name: newName })
+      });
+      const d = await r.json();
+      if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+      else alert('リネーム失敗: ' + d.error);
+    } catch(e) { alert('エラー: ' + e.message); }
+  });
+
+  document.getElementById('ft-ctx-delete').addEventListener('click', async () => {
+    if (!_ctxTarget) return;
+    ctxMenu.style.display = 'none';
+    if (!confirm(`"${_ctxTarget.name}" を削除しますか？`)) return;
+    const tok = localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
+    try {
+      const r = await fetch(`/_delete?token=${encodeURIComponent(tok)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: _ctxTarget.path })
+      });
+      const d = await r.json();
+      if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+      else alert('削除失敗: ' + d.error);
+    } catch(e) { alert('エラー: ' + e.message); }
+  });
 })();
 </script>
 </body>

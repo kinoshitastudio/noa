@@ -154,6 +154,37 @@ app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   res.json({ ok: true, count: todos.length, project });
 });
 
+// ── ファイル操作API: リネーム ────────────────────────────────────
+app.post('/_rename', requireAuth, express.json({ limit: '4kb' }), (req, res) => {
+  const { path: relPath, name: newName } = req.body || {};
+  if (!relPath || !newName) return res.status(400).json({ error: 'Missing path or name' });
+  if (newName.includes('/') || newName.includes('\\') || newName === '.' || newName === '..')
+    return res.status(400).json({ error: 'Invalid name' });
+  try {
+    const absPath = safeResolvePath(relPath);
+    const newAbs  = path.join(path.dirname(absPath), newName);
+    if (!newAbs.startsWith(FILE_ROOT)) return res.status(403).json({ error: 'Access denied' });
+    fs.renameSync(absPath, newAbs);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ファイル操作API: 削除 ────────────────────────────────────────
+app.post('/_delete', requireAuth, express.json({ limit: '4kb' }), (req, res) => {
+  const { path: relPath } = req.body || {};
+  if (!relPath) return res.status(400).json({ error: 'Missing path' });
+  try {
+    const absPath = safeResolvePath(relPath);
+    const stat = fs.statSync(absPath);
+    if (stat.isDirectory()) {
+      fs.rmdirSync(absPath); // 空ディレクトリのみ
+    } else {
+      fs.unlinkSync(absPath);
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── session store ───────────────────────────────────────────────
 // sessions: Map<id, { pty, clients: Set<ws>, scrollback: string[], name, created }>
 const sessions = new Map();
