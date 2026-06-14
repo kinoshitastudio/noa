@@ -1388,11 +1388,17 @@ const XTERM_THEMES = {
 const THEME = XTERM_THEMES.dark;
 
 // ── WEBSOCKET ──
+let _reconnectTimer = null;
 function connect(token) {
+  if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
   ws = new WebSocket(WS_URL);
   ws.onopen    = () => ws.send(JSON.stringify({ type:'auth', token }));
   ws.onmessage = ({ data }) => { try { onMsg(JSON.parse(data)); } catch {} };
-  ws.onclose   = () => { setConn(false); setTimeout(() => authed && connect(token), 3000); };
+  ws.onclose   = () => {
+    setConn(false);
+    clearTimeout(_reconnectTimer);
+    _reconnectTimer = setTimeout(() => { _reconnectTimer = null; connect(token); }, 3000);
+  };
   ws.onerror   = () => ws.close();
 }
 function send(obj) {
@@ -1621,6 +1627,7 @@ function handleLink(e, url) {
 
 // ── TERMINAL ──
 function initTerm() {
+  if (term) { try { fit?.fit(); } catch {} return; }
   const FitCls = FitAddon?.FitAddon ?? window.FitAddon;
   term = new Terminal({
     fontFamily: "'Space Mono', monospace",
@@ -2974,8 +2981,11 @@ function _cctRender(project) {
     item.querySelector('.cct-del').addEventListener('click', () => _cctDelete(project, t));
     item.addEventListener('mouseenter', () => item.querySelector('.cct-del').style.opacity = '1');
     item.addEventListener('mouseleave', () => item.querySelector('.cct-del').style.opacity = '0');
-    // モバイル: タップで×を表示
-    item.addEventListener('touchstart', () => item.querySelector('.cct-del').style.opacity = '1', { passive:true });
+    // モバイル: タップで×を表示（他のアイテムの×は隠す）
+    item.addEventListener('touchstart', () => {
+      listEl.querySelectorAll('.cct-del').forEach(d => d.style.opacity = '0');
+      item.querySelector('.cct-del').style.opacity = '1';
+    }, { passive:true });
     listEl.appendChild(item);
   });
 
@@ -3105,6 +3115,22 @@ if (window.visualViewport) {
     _vvTimer = setTimeout(_updateTermTop, 150);
   });
 }
+
+// タブ/アプリ切り替えから戻った時にターミナルフォーカスを復元
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && term) setTimeout(() => term.focus(), 100);
+});
+
+// iOS Safari bfcache: バックスワイプで復元された時にWS再接続
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    const tok = localStorage.getItem(LS.token);
+    if (tok && (!ws || ws.readyState > WebSocket.OPEN)) {
+      clearTimeout(_reconnectTimer);
+      connect(tok);
+    }
+  }
+});
 
 function _closeAllPanels() {
   document.getElementById('cc-todos').classList.remove('open');
