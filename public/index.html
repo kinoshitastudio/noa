@@ -1397,9 +1397,12 @@ function onMsg(msg) {
         // URLに ?s= がある → 既存セッションにアタッチ
         sessId = attachId;
         send({ type:'attach', id:sessId, cols:term.cols, rows:term.rows });
+      } else if (paramSession) {
+        // ?session=BMBoard → プロジェクト固有 PTY セッション（孤立した Claude 会話）
+        send({ type:'project-session', name:paramSession, cols:term.cols, rows:term.rows });
       } else {
-        // 新セッション作成（?session= があればその名前を使う）
-        send({ type:'new', cols:term.cols, rows:term.rows, name: paramSession || '' });
+        // 通常の新セッション作成
+        send({ type:'new', cols:term.cols, rows:term.rows });
       }
       break;
     case 'attached':
@@ -1483,6 +1486,7 @@ function onMsg(msg) {
     case 'todos-projects': {
       if (!msg.projects) break;
       _todosData = msg.projects;
+      if (msg.paths) _projectPaths = msg.paths;
       _cctUpdateTabs();
       setTimeout(_updateTermTop, 230);
       break;
@@ -2688,6 +2692,7 @@ const thToggleBtn   = document.getElementById('th-toggle-btn');
 let _thOpen   = false;
 let _cchOpen  = false;
 let _todosData = {};
+let _projectPaths = {}; // { [project]: '/absolute/path' }
 let _activeProject = null;
 // カスタムタブ（ユーザーが自由に追加したタブ）
 let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
@@ -3175,11 +3180,14 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     if (!_ctxTarget) return;
     ctxMenu.style.display = 'none';
     const project = _ctxTarget.name;
+    // 絶対パスを組み立てる (_ftFileRoot + item.path)
+    const absPath = _ftFileRoot ? (_ftFileRoot + '/' + _ctxTarget.path).replace(/\/+/g,'/') : '';
     try {
       await fetch(`/noa-todos?token=${encodeURIComponent(_tok())}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project, todos: [] })
+        body: JSON.stringify({ project, todos: [], path: absPath })
       });
+      _projectPaths[project] = absPath;
       // todos-update は WS で届くが、空配列なので _cctUpdateTabs に任せる
     } catch(e) { alert('登録失敗: ' + e.message); }
   });

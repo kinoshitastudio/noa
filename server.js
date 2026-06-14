@@ -142,12 +142,18 @@ app.post('/_upload', requireAuth, express.raw({ type: '*/*', limit: '50mb' }), (
 });
 
 // ── Claude Code Todos API: hookから受け取り全WSクライアントへブロードキャスト ──
-const TODOS_PATH = path.join(os.homedir(), '.noa_todos.json');
+const TODOS_PATH    = path.join(os.homedir(), '.noa_todos.json');
+const PROJECTS_PATH = path.join(os.homedir(), '.noa_projects.json');
 let _lastTodos = {};
-try { _lastTodos = JSON.parse(fs.readFileSync(TODOS_PATH, 'utf8')); } catch {}
+let _projectPaths = {}; // { [project]: '/absolute/path' }
+try { _lastTodos    = JSON.parse(fs.readFileSync(TODOS_PATH, 'utf8')); } catch {}
+try { _projectPaths = JSON.parse(fs.readFileSync(PROJECTS_PATH, 'utf8')); } catch {}
 
 function _saveTodos() {
   try { fs.writeFileSync(TODOS_PATH, JSON.stringify(_lastTodos), 'utf8'); } catch {}
+}
+function _saveProjectPaths() {
+  try { fs.writeFileSync(PROJECTS_PATH, JSON.stringify(_projectPaths), 'utf8'); } catch {}
 }
 
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
@@ -155,8 +161,11 @@ app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
   const todos   = Array.isArray(req.body?.todos) ? req.body.todos : [];
   const project = req.body?.project || 'default';
+  const projPath = req.body?.path || '';
   _lastTodos[project] = todos;
   _saveTodos();
+  // パスが送られてきたら保存
+  if (projPath) { _projectPaths[project] = projPath; _saveProjectPaths(); }
   const msg = JSON.stringify({ type: 'todos-update', project, todos });
   wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
   res.json({ ok: true, count: todos.length, project });
@@ -214,12 +223,13 @@ function newSessionId() {
   return `s${sessionCounter++}`;
 }
 
-function createSession(id, cols = 120, rows = 36, name = '') {
-  console.log(`[pty] spawning ${SHELL} cols=${cols} rows=${rows} cwd=${os.homedir()}`);
+function createSession(id, cols = 120, rows = 36, name = '', cwd = '') {
+  const workDir = (cwd && fs.existsSync(cwd)) ? cwd : os.homedir();
+  console.log(`[pty] spawning ${SHELL} cols=${cols} rows=${rows} cwd=${workDir}`);
   const ptyProc = pty.spawn(SHELL, [], {
     name: 'xterm-256color',
     cols, rows,
-    cwd:  os.homedir(),
+    cwd:  workDir,
     env:  {
       ...process.env,
       TERM: 'xterm-256color',
@@ -298,7 +308,9 @@ wss.on('connection', ws => {
       }
       authed = true;
       ws.send(JSON.stringify({ type: 'auth', ok: true, sessions: sessionList() }));
-      if (Object.keys(_lastTodos).length > 0) ws.send(JSON.stringify({ type: 'todos-projects', projects: _lastTodos }));
+      if (Object.keys(_lastTodos).length > 0) {
+        ws.send(JSON.stringify({ type: 'todos-projects', projects: _lastTodos, paths: _projectPaths }));
+      }
       return;
     }
 
@@ -334,6 +346,38 @@ wss.on('connection', ws => {
         if (sess.scrollback.length) {
           ws.send(JSON.stringify({ type: 'output', data: sess.scrollback.join('') }));
         }
+        break;
+      }
+
+      case 'project-session': {
+        // プロジェクト固有セッション: proj:NAME で固定ID管理
+        const projName = (msg.name || '').trim();
+        if (!projName) break;
+        const sessId = `proj:${projName}`;
+        const projPath = _projectPaths[projName] || '';
+
+        if (sess) sess.clients.delete(ws);
+
+        if (!sessions.has(sessId)) {
+          // 初回: プロジェクトディレクトリで PTY を作成して claude を自動起動
+          sess = createSession(sessId, msg.cols || 120, msg.rows || 36, projName, projPath);
+          setTimeout(() => {
+            if (sessions.has(sessId)) {
+              sessions.get(sessId).pty.write(`claude\n`);
+            }
+          }, 600);
+          console.log(`[proj] created project session for "${projName}" at ${projPath || 'home'}`);
+        } else {
+          // 再接続: 既存 PTY にアタッチ（会話を継続）
+          sess = sessions.get(sessId);
+          console.log(`[proj] reattached to project session "${projName}"`);
+        }
+        sess.clients.add(ws);
+        ws.send(JSON.stringify({ type: 'attached', id: sess.id, name: sess.name }));
+        if (sess.scrollback.length) {
+          ws.send(JSON.stringify({ type: 'output', data: sess.scrollback.join('') }));
+        }
+        broadcastAll({ type: 'sessions', list: sessionList() });
         break;
       }
 
