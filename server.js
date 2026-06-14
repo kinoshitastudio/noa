@@ -156,6 +156,24 @@ function _saveProjectPaths() {
   try { fs.writeFileSync(PROJECTS_PATH, JSON.stringify(_projectPaths), 'utf8'); } catch {}
 }
 
+app.post('/noa-project-delete', express.json({ limit: '4kb' }), (req, res) => {
+  const token = req.query.token || req.headers['x-noa-token'] || '';
+  if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
+  const project = req.body?.project || '';
+  if (!project) return res.status(400).json({ error: 'missing project' });
+  delete _lastTodos[project];
+  delete _projectPaths[project];
+  _saveTodos();
+  _saveProjectPaths();
+  // PTYセッションが残っていれば終了
+  const sessId = `proj:${project}`;
+  const sess = sessions.get(sessId);
+  if (sess) { try { sess.pty.kill(); } catch {} sessions.delete(sessId); }
+  const msg = JSON.stringify({ type: 'project-deleted', project });
+  wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
+  res.json({ ok: true, project });
+});
+
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   const token = req.query.token || req.headers['x-noa-token'] || '';
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });

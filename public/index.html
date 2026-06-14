@@ -889,7 +889,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 }
 </style>
 </head>
-<body>
+<body><script>(function(){var t=localStorage.getItem('noa_theme');if(t&&t!=='dark')document.body.classList.add(t);})();</script>
 
 <!-- AUTH / WELCOME -->
 <div id="auth">
@@ -1384,7 +1384,7 @@ function send(obj) {
 function onMsg(msg) {
   switch (msg.type) {
     case 'auth':
-      if (!msg.ok) { authErr.textContent = 'invalid token'; return; }
+      if (!msg.ok) { authEl.style.visibility = ''; authErr.textContent = 'invalid token'; return; }
       authed = true; setConn(true);
       localStorage.setItem(LS.token, tokEl.value.trim());
       authEl.classList.add('gone');
@@ -1489,6 +1489,17 @@ function onMsg(msg) {
       if (msg.paths) _projectPaths = msg.paths;
       _cctUpdateTabs();
       setTimeout(_updateTermTop, 230);
+      break;
+    }
+    case 'project-deleted': {
+      const proj = msg.project;
+      if (proj && _todosData[proj] !== undefined) {
+        delete _todosData[proj];
+        delete _projectPaths[proj];
+        if (_activeProject === proj) _activeProject = Object.keys(_todosData)[0] || null;
+        _cctUpdateTabs();
+        if (_activeProject) _cctRender(_activeProject);
+      }
       break;
     }
     case 'tunnel-url': {
@@ -2679,9 +2690,9 @@ function tryAuth() {
 document.getElementById('auth-btn').addEventListener('click', tryAuth);
 tokEl.addEventListener('keydown', e => { if (e.key==='Enter') tryAuth(); });
 
-// auto-connect
+// auto-connect: 保存済みトークンがあれば auth 画面を隠して即接続（フラッシュ防止）
 const savedTok = paramTok || localStorage.getItem(LS.token);
-if (savedTok) { tokEl.value = savedTok; connect(savedTok); }
+if (savedTok) { tokEl.value = savedTok; authEl.style.visibility = 'hidden'; connect(savedTok); }
 
 // ── PANEL COLLAPSE (Conductor layout) ──
 // Terminal (left)
@@ -2757,7 +2768,7 @@ function _cctUpdateTabs() {
       });
       wrap.append(tab, delBtn);
     } else {
-      // プロジェクトタブ: ↗ 新規ウィンドウ
+      // プロジェクトタブ: ↗ 新規ウィンドウ + × 削除
       const openBtn = document.createElement('button');
       openBtn.className = 'cct-tab-open';
       openBtn.title = `${p} を新規ウィンドウで開く`;
@@ -2767,7 +2778,21 @@ function _cctUpdateTabs() {
         const tok = localStorage.getItem(LS.token) || '';
         window.open(`${location.origin}/?token=${encodeURIComponent(tok)}&session=${encodeURIComponent(p)}`, '_blank');
       });
-      wrap.append(tab, openBtn);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'cct-tab-del';
+      delBtn.title = `"${p}" タブを削除`;
+      delBtn.textContent = '×';
+      delBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!confirm(`"${p}" タブとプロジェクトセッションを削除しますか？`)) return;
+        try {
+          await fetch(`/noa-project-delete?token=${encodeURIComponent(_tok())}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project: p })
+          });
+        } catch(err) { alert('削除失敗: ' + err.message); }
+      });
+      wrap.append(tab, openBtn, delBtn);
     }
     tabsEl.appendChild(wrap);
   });
