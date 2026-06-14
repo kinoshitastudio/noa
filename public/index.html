@@ -2737,6 +2737,8 @@ function _cctUpdateTabs() {
       _activeProject = p;
       _cctUpdateTabs();
       _cctRender(p);
+      // プロジェクトタブなら同一ウィンドウ内でターミナルセッションを切り替え
+      if (!isCustom) _switchToProjectSession(p);
       setTimeout(_updateTermTop, 230);
     });
     if (isCustom) {
@@ -2802,6 +2804,21 @@ function _cctUpdateTabs() {
   tabsEl.appendChild(addBtn);
 
   _cctRender(_activeProject);
+}
+
+// プロジェクトタブクリック → 同一ウィンドウ内でターミナルセッションを切り替え
+function _switchToProjectSession(projName) {
+  if (!authed) return;
+  const sessId = `proj:${projName}`;
+  // 既にそのセッションにいる場合はスキップ
+  if (window._currentSessId === sessId) return;
+  window._currentSessId = sessId;
+  // ターミナルに接続切り替えを送信
+  send({ type: 'project-session', name: projName, cols: term ? term.cols : 120, rows: term ? term.rows : 36 });
+  // セッションラベル更新
+  const labelEl = document.getElementById('sess-label');
+  if (labelEl) labelEl.textContent = projName;
+  document.title = `Noa — ${projName}`;
 }
 
 function _cctRender(project) {
