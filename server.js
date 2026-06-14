@@ -545,10 +545,40 @@ wss.on('connection', ws => {
 // ── start ────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   const tailscaleIP = '100.107.218.60';
+  const localUrl    = `http://localhost:${PORT}/?token=${encodeURIComponent(TOKEN)}`;
   console.log('\n  ╔══════════════════════════════════════╗');
   console.log('  ║  N O A  —  web terminal              ║');
   console.log('  ╚══════════════════════════════════════╝\n');
   console.log(`  Local      →  http://localhost:${PORT}`);
   console.log(`  Tailscale  →  http://${tailscaleIP}:${PORT}`);
   console.log(`  Token      →  ${TOKEN}\n`);
+
+  // NOA_NO_OPEN=1 で自動オープンを無効化できる
+  if (!process.env.NOA_NO_OPEN) {
+    const { exec } = require('child_process');
+    const opener = process.platform === 'darwin' ? 'open'
+                 : process.platform === 'win32'  ? 'start'
+                 : 'xdg-open';
+    exec(`${opener} "${localUrl}"`);
+  }
+
+  // Cloudflare Quick Tunnel（NOA_NO_TUNNEL=1 で無効化）
+  if (!process.env.NOA_NO_TUNNEL) {
+    const { spawn } = require('child_process');
+    const cf = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const _extractUrl = data => {
+      const m = data.toString().match(/https:\/\/[a-z0-9\-]+\.trycloudflare\.com/);
+      if (m) {
+        const tunnelUrl = `${m[0]}/?token=${encodeURIComponent(TOKEN)}`;
+        console.log(`  Tunnel     →  ${tunnelUrl}\n`);
+        broadcastAll({ type: 'tunnel-url', url: tunnelUrl });
+      }
+    };
+    cf.stdout.on('data', _extractUrl);
+    cf.stderr.on('data', _extractUrl);
+    cf.on('error', () => {}); // cloudflared 未インストール時は無視
+    process.on('exit', () => { try { cf.kill(); } catch {} });
+  }
 });

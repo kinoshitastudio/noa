@@ -136,7 +136,12 @@ header{height:var(--h);flex-shrink:0;display:flex;align-items:center;
 .logo em{color:var(--accent);font-style:normal}
 
 #sess-label{flex:1;padding:0 .6rem;font-size:.72rem;color:var(--dim);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Space Mono',monospace}
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Space Mono',monospace;
+  cursor:text;border-radius:3px;transition:background var(--trans)}
+#sess-label:hover{background:var(--bg3);color:var(--ink)}
+#sess-label-input{flex:1;margin:0 .4rem;font-size:.72rem;font-family:'Space Mono',monospace;
+  background:var(--bg3);border:1px solid var(--accent);border-radius:3px;color:var(--ink);
+  padding:1px 6px;outline:none;display:none}
 
 /* Toolbar button groups */
 .hd-group{display:flex;align-items:center;gap:1px;
@@ -185,8 +190,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0}
 .cct-tab{padding:2px 7px;font-size:.6rem;border-radius:2px;cursor:pointer;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);font-family:'Space Mono',monospace;white-space:nowrap;line-height:1.6;transition:all var(--trans)}
 .cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
-.cct-tab-open{padding:2px 5px;font-size:.6rem;cursor:pointer;color:var(--faint);background:none;border:none;line-height:1.6;opacity:.6;transition:opacity var(--trans)}
-.cct-tab-open:hover{opacity:1;color:var(--accent)}
+.cct-tab-open{padding:2px 5px;font-size:.65rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.7;transition:opacity var(--trans),color var(--trans),transform var(--trans)}
+.cct-tab-open:hover{opacity:1;color:var(--accent);transform:scale(1.2)}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
 .cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
@@ -198,6 +203,14 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-label{flex:1;color:var(--dim);word-break:break-all;font-family:'Space Mono',monospace}
 .cct-label.in_progress{color:var(--ink);font-weight:bold}
 .cct-label.completed{color:var(--faint);text-decoration:line-through}
+
+/* ── toast notification ── */
+#noa-toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--bg2);border:1px solid var(--line2);border-radius:4px;padding:7px 14px;
+  font-size:.65rem;font-family:'Space Mono',monospace;color:var(--ink);
+  box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none;
+  opacity:0;transition:opacity .2s,transform .2s;z-index:9998}
+#noa-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── file tree context menu ── */
 #ft-ctx{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--line2);border-radius:4px;
@@ -536,41 +549,19 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         <div class="auth-step">
           <span class="auth-step-num">01</span>
           <div class="auth-step-body">
-            <div class="auth-step-label">CLONE</div>
+            <div class="auth-step-label">START</div>
             <div class="auth-step-code">
-              <span>git clone https://github.com/99letters/noa</span>
-              <button class="auth-copy-btn" data-copy="git clone https://github.com/99letters/noa">COPY</button>
+              <span>npx @kinoshitastudio/noa</span>
+              <button class="auth-copy-btn" data-copy="npx @kinoshitastudio/noa">COPY</button>
             </div>
+            <div style="font-size:.6rem;color:var(--faint);margin-top:4px">ブラウザが自動で開き、そのまま接続されます</div>
           </div>
         </div>
         <div class="auth-step">
           <span class="auth-step-num">02</span>
           <div class="auth-step-body">
-            <div class="auth-step-label">INSTALL</div>
-            <div class="auth-step-code">
-              <span>cd noa &amp;&amp; npm install</span>
-              <button class="auth-copy-btn" data-copy="cd noa && npm install">COPY</button>
-            </div>
-          </div>
-        </div>
-        <div class="auth-step">
-          <span class="auth-step-num">03</span>
-          <div class="auth-step-body">
-            <div class="auth-step-label">START</div>
-            <div class="auth-step-code">
-              <span>NOA_TOKEN=yourtoken node server.js</span>
-              <button class="auth-copy-btn" data-copy="NOA_TOKEN=yourtoken node server.js">COPY</button>
-            </div>
-          </div>
-        </div>
-        <div class="auth-step">
-          <span class="auth-step-num">04</span>
-          <div class="auth-step-body">
-            <div class="auth-step-label">OPEN</div>
-            <div class="auth-step-code">
-              <span>http://localhost:2797/?token=yourtoken</span>
-              <button class="auth-copy-btn" data-copy="http://localhost:2797/?token=yourtoken">COPY</button>
-            </div>
+            <div class="auth-step-label">TOKEN</div>
+            <div style="font-size:.65rem;color:var(--dim);line-height:1.6">起動時にターミナルに表示された<br><code style="color:var(--accent)">Token → xxxxxxxx</code><br>をコピーして下に貼り付けてください</div>
           </div>
         </div>
       </div>
@@ -590,7 +581,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 <div id="shell" class="gone">
   <header>
     <div class="logo">N<em>O</em>A</div>
-    <div id="sess-label">—</div>
+    <div id="sess-label" title="クリックしてセッション名を変更">—</div>
+    <input id="sess-label-input" type="text" maxlength="40" spellcheck="false">
 
     <!-- グループ1: セッション -->
     <div class="hd-group">
@@ -641,7 +633,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <div class="p-header">
         <div id="term-col-btn" class="p-colbtn" title="端末を畳む">◀</div>
         <span class="ph-label">TERM</span>
-        <div id="cc-todo-btn" class="p-colbtn" title="Claude Codeタスク" style="margin-left:auto;font-size:.75rem;display:none">⬡</div>
+        <div id="cc-todo-btn" class="p-colbtn" title="Claude Codeタスク" style="margin-left:auto;font-size:.75rem;opacity:.4">⬡</div>
         <div id="cc-hist-btn" class="p-colbtn" title="Claude Code会話履歴" style="font-size:.8rem">↺</div>
         <div id="th-toggle-btn" class="p-colbtn" title="シェル履歴" style="font-size:.68rem">&gt;_</div>
       </div>
@@ -778,9 +770,12 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       </div>
       <div class="sp-section">
         <div class="sp-label">REMOTE ACCESS</div>
-        <div style="font-size:.58rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.04em">Tailscale 経由 — どこからでもアクセス可</div>
+        <div style="font-size:.58rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.04em">Tailscale 経由</div>
         <div id="sp-remote-url" style="font-size:.58rem;color:var(--ink);word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:.4rem .6rem;margin-bottom:.5rem;font-family:'Space Mono',monospace;letter-spacing:.02em;line-height:1.5">—</div>
-        <button class="sp-btn" id="sp-remote-copy" style="width:100%">COPY URL</button>
+        <button class="sp-btn" id="sp-remote-copy" style="width:100%;margin-bottom:.8rem">COPY URL</button>
+        <div style="font-size:.58rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.04em">Cloudflare Tunnel <span id="sp-tunnel-status" style="color:var(--faint)">— 起動中…</span></div>
+        <div id="sp-tunnel-url" style="font-size:.58rem;color:var(--ink);word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:.4rem .6rem;margin-bottom:.5rem;font-family:'Space Mono',monospace;letter-spacing:.02em;line-height:1.5">—</div>
+        <button class="sp-btn" id="sp-tunnel-copy" style="width:100%">COPY TUNNEL URL</button>
       </div>
     </div>
   </div>
@@ -833,6 +828,33 @@ const tokEl      = document.getElementById('tok');
 const authErr    = document.getElementById('auth-err');
 const shellEl    = document.getElementById('shell');
 const sessLabel  = document.getElementById('sess-label');
+const sessLabelInput = document.getElementById('sess-label-input');
+
+function _startRenameSession() {
+  if (!sessId) return;
+  sessLabelInput.value = sessName;
+  sessLabel.style.display = 'none';
+  sessLabelInput.style.display = '';
+  sessLabelInput.focus();
+  sessLabelInput.select();
+}
+function _commitRenameSession() {
+  const newName = sessLabelInput.value.trim();
+  sessLabelInput.style.display = 'none';
+  sessLabel.style.display = '';
+  if (newName && newName !== sessName) {
+    send({ type: 'rename', name: newName });
+    sessName = newName;
+    sessLabel.textContent = newName;
+    document.title = `Noa — ${newName}`;
+  }
+}
+sessLabel.addEventListener('click', _startRenameSession);
+sessLabelInput.addEventListener('blur', _commitRenameSession);
+sessLabelInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sessLabelInput.blur(); }
+  if (e.key === 'Escape') { sessLabelInput.value = sessName; sessLabelInput.blur(); }
+});
 const termEl     = document.getElementById('term-el');
 const voiceBadge = document.getElementById('voice-badge');
 const sbDot      = document.getElementById('sb-dot');
@@ -1024,6 +1046,20 @@ function onMsg(msg) {
       _todosData = msg.projects;
       _cctUpdateTabs();
       setTimeout(_updateTermTop, 230);
+      break;
+    }
+    case 'tunnel-url': {
+      const tunnelUrlEl   = document.getElementById('sp-tunnel-url');
+      const tunnelCopyBtn = document.getElementById('sp-tunnel-copy');
+      const tunnelStatus  = document.getElementById('sp-tunnel-status');
+      if (!tunnelUrlEl) break;
+      tunnelUrlEl.textContent = msg.url;
+      if (tunnelStatus) tunnelStatus.textContent = '— 接続中';
+      if (tunnelCopyBtn) tunnelCopyBtn.onclick = () => {
+        navigator.clipboard.writeText(msg.url).catch(() => {});
+        tunnelCopyBtn.textContent = 'COPIED';
+        setTimeout(() => { tunnelCopyBtn.textContent = 'COPY TUNNEL URL'; }, 1500);
+      };
       break;
     }
     case 'tailscale-info': {
@@ -2117,12 +2153,12 @@ function _cctUpdateTabs() {
   // 登録済みプロジェクト（空配列含む）を全表示
   const projects = Object.keys(_todosData);
   if (projects.length === 0) {
-    ccBtn.style.display = 'none';
+    ccBtn.style.opacity = '0.4';
     tabsEl.style.display = 'none';
     document.getElementById('cc-todos').classList.remove('open');
     return;
   }
-  ccBtn.style.display = '';
+  ccBtn.style.opacity = '1';
   if (!_activeProject || !projects.includes(_activeProject)) _activeProject = projects[0];
   if (projects.length <= 1) {
     tabsEl.style.display = 'none';
@@ -2242,6 +2278,14 @@ document.getElementById('cc-todo-btn').addEventListener('click', () => {
   if (willOpen) {
     ccTodos.classList.add('open');
     document.getElementById('cc-todo-btn').style.opacity = '1';
+    // タスクが0件ならヒントを表示
+    if (Object.keys(_todosData).length === 0) {
+      document.getElementById('cct-list').innerHTML =
+        '<div style="padding:.75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace;line-height:1.8">' +
+        'Claude Code でタスクを作成すると<br>ここにプロジェクト別に表示されます。<br><br>' +
+        '<span style="color:var(--dim)">フォルダを右クリック →<br>⬡ プロジェクト登録 で手動追加も可</span>' +
+        '</div>';
+    }
   }
   setTimeout(_updateTermTop, 230);
 });
@@ -2399,6 +2443,8 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
 })();
 </script>
 
+<div id="noa-toast"></div>
+
 <!-- ファイルツリー右クリックメニュー -->
 <div id="ft-ctx">
   <div class="ft-ctx-item" id="ft-ctx-register" style="display:none">⬡ プロジェクト登録</div>
@@ -2413,6 +2459,15 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
   const _undoStack = []; // { type:'delete'|'rename', ... }
 
   document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+
+  let _toastTimer = null;
+  function _toast(msg, duration = 3000) {
+    const el = document.getElementById('noa-toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+  }
 
   function _tok() {
     return localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
@@ -2477,6 +2532,7 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
       if (d.ok) {
         _undoStack.push({ type: 'delete', trashPath: d.trashPath, originalPath: _ctxTarget.path });
         window._doLoadFileTree && window._doLoadFileTree();
+        _toast(`"${_ctxTarget.name}" を削除しました — Cmd+Z で元に戻せます`);
       } else alert('削除失敗: ' + d.error);
     } catch(e) { alert('エラー: ' + e.message); }
   });
@@ -2495,7 +2551,7 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
           body: JSON.stringify({ trashPath: op.trashPath, originalPath: op.originalPath })
         });
         const d = await r.json();
-        if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+        if (d.ok) { window._doLoadFileTree && window._doLoadFileTree(); _toast('削除を元に戻しました'); }
         else { alert('復元失敗: ' + d.error); _undoStack.push(op); }
       } else if (op.type === 'rename') {
         const r = await fetch(`/_rename?token=${encodeURIComponent(_tok())}`, {
@@ -2503,7 +2559,7 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
           body: JSON.stringify({ path: op.path, name: op.oldName })
         });
         const d = await r.json();
-        if (d.ok) window._doLoadFileTree && window._doLoadFileTree();
+        if (d.ok) { window._doLoadFileTree && window._doLoadFileTree(); _toast('名前変更を元に戻しました'); }
         else { alert('Undo失敗: ' + d.error); _undoStack.push(op); }
       }
     } catch(e) { alert('エラー: ' + e.message); _undoStack.push(op); }
