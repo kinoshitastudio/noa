@@ -1179,6 +1179,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   <input type="file" id="mob-img-input" accept="image/*,video/*" multiple style="display:none">
 
   <div id="mobkeys">
+    <div class="mk mk-img" id="mob-img-btn" title="写真を送る" style="border-right:1px solid var(--accent);opacity:.85;font-size:1rem">📷</div>
+    <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
     <div class="mk w" data-k="&#x03;">^C</div>
@@ -1194,7 +1196,6 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <div class="mk"   data-k="-">-</div>
     <div class="mk"   data-k="&amp;">&amp;</div>
     <div class="mk"   data-k="`">`</div>
-    <div class="mk mk-img" id="mob-img-btn" title="写真を送る">📷</div>
   </div>
 
   <!-- Gameboy D-pad (Gameboy theme + mobile only) -->
@@ -1955,9 +1956,9 @@ async function _mobUploadFiles(files) {
       send({ type: 'input', data: '@' + fpath + ' ' });
       // プレビューペインにも表示
       _showUploadPreview(fpath, file);
-      _showToast('📷 ' + file.name + ' を送信しました');
+      if (typeof _toast === 'function') _toast('📷 ' + file.name + ' を送信しました');
     } catch(err) {
-      _showToast('❌ アップロード失敗: ' + err.message);
+      if (typeof _toast === 'function') _toast('❌ アップロード失敗: ' + err.message);
     }
   }
   setLoading(false);
