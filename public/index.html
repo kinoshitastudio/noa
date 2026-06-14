@@ -730,6 +730,12 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
           <button class="sp-btn sp-theme-sel" data-theme="op1">OP-1</button>
         </div>
       </div>
+      <div class="sp-section">
+        <div class="sp-label">REMOTE ACCESS</div>
+        <div style="font-size:.58rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.04em">Tailscale 経由 — どこからでもアクセス可</div>
+        <div id="sp-remote-url" style="font-size:.58rem;color:var(--ink);word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:.4rem .6rem;margin-bottom:.5rem;font-family:'Space Mono',monospace;letter-spacing:.02em;line-height:1.5">—</div>
+        <button class="sp-btn" id="sp-remote-copy" style="width:100%">COPY URL</button>
+      </div>
     </div>
   </div>
 
@@ -955,6 +961,24 @@ function onMsg(msg) {
       // cwdをファイルツリーでハイライト
       if (msg.cwd && _ftFileRoot) _ftHighlightCwd(msg.cwd);
       break;
+    case 'tailscale-info': {
+      const urlEl = document.getElementById('sp-remote-url');
+      const copyBtn = document.getElementById('sp-remote-copy');
+      if (!urlEl) break;
+      if (msg.ip) {
+        const port = location.port || '2797';
+        const remoteUrl = `http://${msg.ip}:${port}/?token=${msg.token}`;
+        urlEl.textContent = remoteUrl;
+        if (copyBtn) copyBtn.onclick = () => {
+          navigator.clipboard.writeText(remoteUrl).catch(() => {});
+          copyBtn.textContent = 'COPIED';
+          setTimeout(() => { copyBtn.textContent = 'COPY URL'; }, 1500);
+        };
+      } else {
+        urlEl.textContent = 'Tailscale not connected';
+      }
+      break;
+    }
   }
 }
 
@@ -2147,6 +2171,7 @@ function setActivityPanel(name) {
 // ── SETTINGS OVERLAY ──
 function openSettings() {
   settingsOverlay.classList.add('show');
+  if (authed) send({ type: 'tailscale-info' });
 }
 function closeSettings() {
   settingsOverlay.classList.remove('show');

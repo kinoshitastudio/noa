@@ -407,6 +407,17 @@ wss.on('connection', ws => {
         }
         break;
       }
+      case 'tailscale-info': {
+        if (!authed) break;
+        try {
+          const ip = execSync('tailscale ip -4 2>/dev/null', { timeout: 2000, encoding: 'utf8' }).trim().split('\n')[0];
+          const token = process.env.NOA_TOKEN || '';
+          ws.send(JSON.stringify({ type: 'tailscale-info', ip, token }));
+        } catch {
+          ws.send(JSON.stringify({ type: 'tailscale-info', ip: null }));
+        }
+        break;
+      }
     }
   });
 
