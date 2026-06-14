@@ -361,6 +361,16 @@ wss.on('connection', ws => {
         if (!sessions.has(sessId)) {
           // 初回: プロジェクトディレクトリで PTY を作成して claude を自動起動
           sess = createSession(sessId, msg.cols || 120, msg.rows || 36, projName, projPath);
+          if (!projPath) {
+            // パス未登録の場合、ヒントを表示
+            setTimeout(() => {
+              if (sessions.has(sessId)) {
+                sessions.get(sessId).pty.write(
+                  `echo "\x1b[33m[Noa] \x1b[0m${projName} のパス未登録 — ファイルツリーでフォルダを右クリック→⬡プロジェクト登録 または cd で移動後に再度タブをクリック"\r\n`
+                );
+              }
+            }, 300);
+          }
           setTimeout(() => {
             if (sessions.has(sessId)) {
               sessions.get(sessId).pty.write(`claude\n`);

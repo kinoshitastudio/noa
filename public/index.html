@@ -2810,12 +2810,11 @@ function _cctUpdateTabs() {
 function _switchToProjectSession(projName) {
   if (!authed) return;
   const sessId = `proj:${projName}`;
-  // 既にそのセッションにいる場合はスキップ
   if (window._currentSessId === sessId) return;
   window._currentSessId = sessId;
-  // ターミナルに接続切り替えを送信
+  // ターミナルをクリアしてから新セッションのスクロールバックを受信する
+  if (term) term.clear();
   send({ type: 'project-session', name: projName, cols: term ? term.cols : 120, rows: term ? term.rows : 36 });
-  // セッションラベル更新
   const labelEl = document.getElementById('sess-label');
   if (labelEl) labelEl.textContent = projName;
   document.title = `Noa — ${projName}`;
