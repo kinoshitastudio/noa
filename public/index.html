@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Noa — Web Terminal for your Mac</title>
 <meta name="description" content="iPhone やリモートデバイスから Mac を操作するブラウザベースのターミナル。Claude Code との連携、3カラムレイアウト、プロジェクト別セッション管理。">
 <meta property="og:title" content="Noa — Web Terminal for your Mac">
@@ -897,7 +897,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 }
 </style>
 </head>
-<body><script>(function(){var t=localStorage.getItem('noa_theme');if(t&&t!=='dark')document.body.classList.add(t);})();</script>
+<body><script>(function(){var t=localStorage.getItem('noa_theme');if(t&&t!=='dark')document.body.classList.add(t);var p=new URLSearchParams(location.search).get('token');if(p||localStorage.getItem('noa_token'))document.documentElement.style.setProperty('--auth-init','hidden');})();</script>
+<style>#auth{visibility:var(--auth-init,visible)}</style>
 
 <!-- AUTH / WELCOME -->
 <div id="auth">
@@ -1409,8 +1410,13 @@ function onMsg(msg) {
         // ?session=BMBoard → プロジェクト固有 PTY セッション（孤立した Claude 会話）
         send({ type:'project-session', name:paramSession, cols:term.cols, rows:term.rows });
       } else {
-        // 通常の新セッション作成
-        send({ type:'new', cols:term.cols, rows:term.rows });
+        // 最後に使ったプロジェクトを復元、なければ新セッション
+        const lastProj = localStorage.getItem('noa_last_project');
+        if (lastProj) {
+          setTimeout(() => _switchToProjectSession(lastProj), 100);
+        } else {
+          send({ type:'new', cols:term.cols, rows:term.rows });
+        }
       }
       break;
     case 'attached':
@@ -2757,7 +2763,7 @@ function _cctUpdateTabs() {
       _cctUpdateTabs();
       _cctRender(p);
       // プロジェクトタブなら同一ウィンドウ内でターミナルセッションを切り替え
-      if (!isCustom) _switchToProjectSession(p);
+      if (!isCustom) { _switchToProjectSession(p); localStorage.setItem('noa_last_project', p); }
       setTimeout(_updateTermTop, 230);
     });
     if (isCustom) {
@@ -2894,7 +2900,13 @@ function _cctRender(project) {
     item.className = 'cct-item';
     const st = t.status || 'pending';
     const checkIcon = st === 'completed' ? '✓' : st === 'in_progress' ? '▶' : '';
-    item.innerHTML = `<span class="cct-check ${st}">${checkIcon}</span><span class="cct-label ${st}">${(t.content||t.description||'').replace(/</g,'&lt;')}</span>`;
+    item.innerHTML = `<span class="cct-check ${st}" style="cursor:pointer">${checkIcon}</span><span class="cct-label ${st}">${(t.content||t.description||'').replace(/</g,'&lt;')}</span><span class="cct-del" style="flex-shrink:0;margin-left:4px;opacity:0;font-size:.6rem;color:var(--faint);cursor:pointer;line-height:1;padding:0 2px;transition:opacity .15s" title="削除">×</span>`;
+    item.querySelector('.cct-check').addEventListener('click', () => _cctToggle(project, t));
+    item.querySelector('.cct-del').addEventListener('click', () => _cctDelete(project, t));
+    item.addEventListener('mouseenter', () => item.querySelector('.cct-del').style.opacity = '1');
+    item.addEventListener('mouseleave', () => item.querySelector('.cct-del').style.opacity = '0');
+    // モバイル: タップで×を表示
+    item.addEventListener('touchstart', () => item.querySelector('.cct-del').style.opacity = '1', { passive:true });
     listEl.appendChild(item);
   });
 
@@ -2902,6 +2914,43 @@ function _cctRender(project) {
   const hasActive = todos.some(t => t.status === 'in_progress');
   if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
   else ccBtn.style.color = '';
+}
+
+// タスクトグル (pending/in_progress → completed, completed → pending)
+function _cctToggle(project, task) {
+  const isCustom = _isCustomTab(project);
+  const todos = isCustom ? (_customTodosData[project] || []) : (_todosData[project] || []);
+  const t = todos.find(x => x.content === task.content);
+  if (!t) return;
+  t.status = t.status === 'completed' ? 'pending' : 'completed';
+  if (isCustom) { _customTodosData[project] = todos; _saveCustomTabs(); }
+  else {
+    _todosData[project] = todos;
+    const tok = localStorage.getItem(LS.token) || '';
+    fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
+      body: JSON.stringify({ project, todos })
+    }).catch(() => {});
+  }
+  _cctRender(project);
+}
+
+// タスク削除
+function _cctDelete(project, task) {
+  const isCustom = _isCustomTab(project);
+  let todos = isCustom ? (_customTodosData[project] || []) : (_todosData[project] || []);
+  todos = todos.filter(x => x.content !== task.content);
+  if (isCustom) { _customTodosData[project] = todos; _saveCustomTabs(); }
+  else {
+    _todosData[project] = todos;
+    const tok = localStorage.getItem(LS.token) || '';
+    fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
+      body: JSON.stringify({ project, todos })
+    }).catch(() => {});
+  }
+  _cctRender(project);
+  setTimeout(_updateTermTop, 230);
 }
 
 // タスク手動追加
@@ -2918,11 +2967,11 @@ function _cctAddTask(content) {
   } else {
     // プロジェクトタブ: サーバーに保存
     const todos = _todosData[project] || [];
-    todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString() });
+    todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString(), manual: true });
     _todosData[project] = todos;
     const tok = localStorage.getItem(LS.token) || '';
     fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
       body: JSON.stringify({ project, todos })
     }).catch(() => {});
   }
@@ -2942,6 +2991,23 @@ document.getElementById('cct-add-input').addEventListener('keydown', e => {
   _cctAddTask(inp.value);
   inp.value = '';
 });
+// モバイルキーボード出現時に入力欄が隠れないよう押し上げ
+(function(){
+  const inp = document.getElementById('cct-add-input');
+  const panel = document.getElementById('cc-todos');
+  if (!inp || !panel) return;
+  const onVVResize = () => {
+    if (!document.activeElement || document.activeElement !== inp) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    // キーボード分だけパネルを上げる
+    const kb = window.innerHeight - vv.height - vv.offsetTop;
+    panel.style.paddingBottom = kb > 0 ? kb + 'px' : '';
+    setTimeout(() => inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onVVResize);
+  inp.addEventListener('blur', () => { panel.style.paddingBottom = ''; });
+})();
 
 function _updateTermTop() {
   const termEl = document.getElementById('term-el');
@@ -2953,6 +3019,15 @@ function _updateTermTop() {
   const thH  = _thOpen  ? Math.min(taskHistoryEl.scrollHeight, 200) : 0;
   termEl.style.top = (28 + ccH + cchH + thH) + 'px';
   if (fit) try { fit.fit(); } catch {}
+}
+
+// モバイルキーボード出現/消去時にターミナルを再フィット
+if (window.visualViewport) {
+  let _vvTimer;
+  window.visualViewport.addEventListener('resize', () => {
+    clearTimeout(_vvTimer);
+    _vvTimer = setTimeout(_updateTermTop, 150);
+  });
 }
 
 function _closeAllPanels() {

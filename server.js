@@ -177,9 +177,14 @@ app.post('/noa-project-delete', express.json({ limit: '4kb' }), (req, res) => {
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   const token = req.query.token || req.headers['x-noa-token'] || '';
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
-  const todos   = Array.isArray(req.body?.todos) ? req.body.todos : [];
-  const project = req.body?.project || 'default';
+  const incoming = Array.isArray(req.body?.todos) ? req.body.todos : [];
+  const project  = req.body?.project || 'default';
   const projPath = req.body?.path || '';
+  const isUser   = req.headers['x-noa-source'] === 'user';
+  // Claude からの更新: manual:true タスクを保持してマージ
+  const existing = _lastTodos[project] || [];
+  const manuals  = isUser ? [] : existing.filter(t => t.manual);
+  const todos    = [...incoming, ...manuals.filter(m => !incoming.some(t => t.content === m.content))];
   _lastTodos[project] = todos;
   _saveTodos();
   // パスが送られてきたら保存
@@ -353,8 +358,25 @@ wss.on('connection', ws => {
         if (sess) sess.clients.delete(ws);
 
         if (!sessions.has(msg.id)) {
-          // create with given id if it doesn't exist
-          sess = createSession(msg.id, msg.cols || 120, msg.rows || 36, msg.name || '');
+          // proj:NAME 形式なら project-session と同じ処理でパスを引き継ぐ
+          const projMatch = (msg.id || '').match(/^proj:(.+)$/);
+          if (projMatch) {
+            const pName = projMatch[1];
+            const pPath = _projectPaths[pName] || '';
+            sess = createSession(msg.id, msg.cols || 120, msg.rows || 36, pName, pPath);
+            setTimeout(() => {
+              if (!sessions.has(msg.id)) return;
+              const s = sessions.get(msg.id);
+              if (pPath) {
+                s.pty.write(`cd "${pPath}"\n`);
+                setTimeout(() => { if (sessions.has(msg.id)) sessions.get(msg.id).pty.write(`claude\n`); }, 400);
+              } else {
+                s.pty.write(`claude\n`);
+              }
+            }, 400);
+          } else {
+            sess = createSession(msg.id, msg.cols || 120, msg.rows || 36, msg.name || '');
+          }
         } else {
           sess = sessions.get(msg.id);
         }
@@ -390,10 +412,16 @@ wss.on('connection', ws => {
             }, 300);
           }
           setTimeout(() => {
-            if (sessions.has(sessId)) {
-              sessions.get(sessId).pty.write(`claude\n`);
+            if (!sessions.has(sessId)) return;
+            const s = sessions.get(sessId);
+            // 明示的に cd して正しいディレクトリに移動してから claude 起動
+            if (projPath) {
+              s.pty.write(`cd "${projPath}"\n`);
+              setTimeout(() => { if (sessions.has(sessId)) sessions.get(sessId).pty.write(`claude\n`); }, 400);
+            } else {
+              s.pty.write(`claude\n`);
             }
-          }, 600);
+          }, 400);
           console.log(`[proj] created project session for "${projName}" at ${projPath || 'home'}`);
         } else {
           // 再接続: 既存 PTY にアタッチ（会話を継続）
