@@ -433,6 +433,12 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
 .cct-tab-open{padding:2px 5px;font-size:.65rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.7;transition:opacity var(--trans),color var(--trans),transform var(--trans)}
 .cct-tab-open:hover{opacity:1;color:var(--accent);transform:scale(1.2)}
+.cct-tab-del{padding:2px 4px;font-size:.6rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.5;transition:opacity var(--trans),color var(--trans)}
+.cct-tab-del:hover{opacity:1;color:var(--danger)}
+.cct-tab-add{padding:2px 7px;font-size:.75rem;cursor:pointer;color:var(--dim);background:none;border:1px dashed var(--line2);border-radius:2px;line-height:1.5;transition:all var(--trans);font-family:'Space Mono',monospace}
+.cct-tab-add:hover{color:var(--accent);border-color:var(--accent)}
+.cct-tab-input{padding:1px 5px;font-size:.6rem;background:var(--bg2);border:1px solid var(--accent);border-radius:2px;color:var(--ink);font-family:'Space Mono',monospace;outline:none;width:80px}
+.cct-tab.custom{border-style:dashed}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
 .cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
@@ -2407,38 +2413,68 @@ let _thOpen   = false;
 let _cchOpen  = false;
 let _todosData = {};
 let _activeProject = null;
+// カスタムタブ（ユーザーが自由に追加したタブ）
+let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
+// カスタムタブのタスクデータ（localStorageに保存）
+let _customTodosData = JSON.parse(localStorage.getItem('noa_custom_todos') || '{}');
+
+function _saveCustomTabs() {
+  localStorage.setItem('noa_custom_tabs', JSON.stringify(_customTabs));
+  localStorage.setItem('noa_custom_todos', JSON.stringify(_customTodosData));
+}
+
+function _isCustomTab(name) { return _customTabs.includes(name); }
 
 function _cctUpdateTabs() {
   const tabsEl = document.getElementById('cct-tabs');
   const ccBtn  = document.getElementById('cc-todo-btn');
-  // 登録済みプロジェクト（空配列含む）を全表示
-  const projects = Object.keys(_todosData);
-  if (projects.length === 0) {
-    ccBtn.style.opacity = '0.4';
+  const projectKeys = Object.keys(_todosData);
+  const allTabs = [...projectKeys, ..._customTabs.filter(c => !projectKeys.includes(c))];
+  const hasAny = allTabs.length > 0;
+
+  ccBtn.style.opacity = hasAny ? '1' : '0.4';
+  if (!hasAny) {
     tabsEl.style.display = 'none';
     document.getElementById('cc-todos').classList.remove('open');
     return;
   }
-  ccBtn.style.opacity = '1';
-  if (!_activeProject || !projects.includes(_activeProject)) _activeProject = projects[0];
-  if (projects.length <= 1) {
-    tabsEl.style.display = 'none';
-  } else {
-    tabsEl.style.display = 'flex';
-    tabsEl.innerHTML = '';
-    projects.forEach(p => {
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;align-items:center;gap:1px';
-      const tab = document.createElement('div');
-      tab.className = 'cct-tab' + (p === _activeProject ? ' active' : '');
-      const inProg = (_todosData[p] || []).filter(t => t.status === 'in_progress').length;
-      tab.textContent = p + (inProg ? ` ▶` : '');
-      tab.addEventListener('click', () => {
-        _activeProject = p;
+  if (!_activeProject || !allTabs.includes(_activeProject)) _activeProject = allTabs[0];
+
+  tabsEl.style.display = 'flex';
+  tabsEl.innerHTML = '';
+
+  allTabs.forEach(p => {
+    const isCustom = _isCustomTab(p);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:1px';
+    const tab = document.createElement('div');
+    tab.className = 'cct-tab' + (p === _activeProject ? ' active' : '') + (isCustom ? ' custom' : '');
+    const todos = isCustom ? (_customTodosData[p] || []) : (_todosData[p] || []);
+    const inProg = todos.filter(t => t.status === 'in_progress').length;
+    tab.textContent = p + (inProg ? ' ▶' : '');
+    tab.addEventListener('click', () => {
+      _activeProject = p;
+      _cctUpdateTabs();
+      _cctRender(p);
+      setTimeout(_updateTermTop, 230);
+    });
+    if (isCustom) {
+      // カスタムタブ: × 削除ボタン
+      const delBtn = document.createElement('button');
+      delBtn.className = 'cct-tab-del';
+      delBtn.title = `"${p}" タブを削除`;
+      delBtn.textContent = '×';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        _customTabs = _customTabs.filter(c => c !== p);
+        delete _customTodosData[p];
+        _saveCustomTabs();
+        if (_activeProject === p) _activeProject = allTabs.find(t => t !== p) || null;
         _cctUpdateTabs();
-        _cctRender(p);
-        setTimeout(_updateTermTop, 230);
       });
+      wrap.append(tab, delBtn);
+    } else {
+      // プロジェクトタブ: ↗ 新規ウィンドウ
       const openBtn = document.createElement('button');
       openBtn.className = 'cct-tab-open';
       openBtn.title = `${p} を新規ウィンドウで開く`;
@@ -2449,9 +2485,41 @@ function _cctUpdateTabs() {
         window.open(`${location.origin}/?token=${encodeURIComponent(tok)}&session=${encodeURIComponent(p)}`, '_blank');
       });
       wrap.append(tab, openBtn);
-      tabsEl.appendChild(wrap);
+    }
+    tabsEl.appendChild(wrap);
+  });
+
+  // + ボタン（常に末尾）
+  const addBtn = document.createElement('button');
+  addBtn.className = 'cct-tab-add';
+  addBtn.title = 'タブを追加';
+  addBtn.textContent = '+';
+  addBtn.addEventListener('click', () => {
+    addBtn.style.display = 'none';
+    const inp = document.createElement('input');
+    inp.className = 'cct-tab-input';
+    inp.placeholder = 'タブ名…';
+    inp.maxLength = 20;
+    tabsEl.appendChild(inp);
+    inp.focus();
+    const commit = () => {
+      const name = inp.value.trim();
+      if (name && !_customTabs.includes(name) && !Object.keys(_todosData).includes(name)) {
+        _customTabs.push(name);
+        if (!_customTodosData[name]) _customTodosData[name] = [];
+        _saveCustomTabs();
+        _activeProject = name;
+      }
+      _cctUpdateTabs();
+    };
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { _cctUpdateTabs(); }
     });
-  }
+    inp.addEventListener('blur', () => setTimeout(commit, 150));
+  });
+  tabsEl.appendChild(addBtn);
+
   _cctRender(_activeProject);
 }
 
@@ -2463,7 +2531,8 @@ function _cctRender(project) {
   const fillEl     = document.getElementById('cct-progress-fill');
   const labelEl    = document.getElementById('cct-progress-label');
   const addEl      = document.getElementById('cct-add');
-  const todos      = _todosData[project] || [];
+  const isCustom = _isCustomTab(project);
+  const todos = isCustom ? (_customTodosData[project] || []) : (_todosData[project] || []);
 
   listEl.innerHTML = '';
 
@@ -2508,15 +2577,24 @@ function _cctRender(project) {
 function _cctAddTask(content) {
   const project = _activeProject;
   if (!project || !content.trim()) return;
-  const todos = _todosData[project] || [];
-  todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString() });
-  _todosData[project] = todos;
-  // サーバーに保存（noa-todos 経由）
-  const tok = localStorage.getItem(LS.token) || '';
-  fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project, todos })
-  }).catch(() => {});
+  const isCustom = _isCustomTab(project);
+  if (isCustom) {
+    // カスタムタブ: localStorage に保存
+    const todos = _customTodosData[project] || [];
+    todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString() });
+    _customTodosData[project] = todos;
+    _saveCustomTabs();
+  } else {
+    // プロジェクトタブ: サーバーに保存
+    const todos = _todosData[project] || [];
+    todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString() });
+    _todosData[project] = todos;
+    const tok = localStorage.getItem(LS.token) || '';
+    fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project, todos })
+    }).catch(() => {});
+  }
   _cctRender(project);
   setTimeout(_updateTermTop, 230);
 }
@@ -2599,7 +2677,7 @@ document.getElementById('cc-todo-btn').addEventListener('click', () => {
       document.getElementById('cct-list').innerHTML =
         '<div style="padding:.75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace;line-height:1.8">' +
         'Claude Code でタスクを作成すると<br>ここにプロジェクト別に表示されます。<br><br>' +
-        '<span style="color:var(--dim)">フォルダを右クリック →<br>⬡ プロジェクト登録 で手動追加も可</span>' +
+        '<span style="color:var(--dim)">フォルダを右クリック →<br>⬡ プロジェクト登録 で手動追加も可<br>タブバーの <b>+</b> で自由タブを追加できます</span>' +
         '</div>';
     }
   }
