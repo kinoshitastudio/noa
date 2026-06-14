@@ -2114,7 +2114,8 @@ let _activeProject = null;
 function _cctUpdateTabs() {
   const tabsEl = document.getElementById('cct-tabs');
   const ccBtn  = document.getElementById('cc-todo-btn');
-  const projects = Object.keys(_todosData).filter(p => (_todosData[p] || []).length > 0);
+  // 登録済みプロジェクト（空配列含む）を全表示
+  const projects = Object.keys(_todosData);
   if (projects.length === 0) {
     ccBtn.style.display = 'none';
     tabsEl.style.display = 'none';
@@ -2164,7 +2165,7 @@ function _cctRender(project) {
   const todos   = _todosData[project] || [];
   listEl.innerHTML = '';
   if (todos.length === 0) {
-    ccTodos.classList.remove('open');
+    listEl.innerHTML = '<div style="padding:.5rem .75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace">— タスクなし —</div>';
     return;
   }
   todos.forEach(t => {
@@ -2400,6 +2401,7 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
 
 <!-- ファイルツリー右クリックメニュー -->
 <div id="ft-ctx">
+  <div class="ft-ctx-item" id="ft-ctx-register" style="display:none">⬡ プロジェクト登録</div>
   <div class="ft-ctx-item" id="ft-ctx-rename">名前変更</div>
   <div class="ft-ctx-item danger" id="ft-ctx-delete">削除</div>
 </div>
@@ -2420,12 +2422,27 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     e.preventDefault();
     e.stopPropagation();
     _ctxTarget = item;
+    // フォルダのみ「プロジェクト登録」を表示
+    document.getElementById('ft-ctx-register').style.display = item.isDir ? '' : 'none';
     const x = Math.min(e.clientX, window.innerWidth  - 160);
-    const y = Math.min(e.clientY, window.innerHeight - 100);
+    const y = Math.min(e.clientY, window.innerHeight - 110);
     ctxMenu.style.left    = x + 'px';
     ctxMenu.style.top     = y + 'px';
     ctxMenu.style.display = 'block';
   };
+
+  document.getElementById('ft-ctx-register').addEventListener('click', async () => {
+    if (!_ctxTarget) return;
+    ctxMenu.style.display = 'none';
+    const project = _ctxTarget.name;
+    try {
+      await fetch(`/noa-todos?token=${encodeURIComponent(_tok())}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project, todos: [] })
+      });
+      // todos-update は WS で届くが、空配列なので _cctUpdateTabs に任せる
+    } catch(e) { alert('登録失敗: ' + e.message); }
+  });
 
   document.getElementById('ft-ctx-rename').addEventListener('click', async () => {
     if (!_ctxTarget) return;
