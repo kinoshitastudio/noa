@@ -1175,6 +1175,9 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <div class="sb" id="sb-voice"></div>
   </div>
 
+  <!-- 隠し画像 input: mobkeys 📷 と GB D-pad 両方から使う -->
+  <input type="file" id="mob-img-input" accept="image/*,video/*" multiple style="display:none">
+
   <div id="mobkeys">
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
@@ -1191,6 +1194,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <div class="mk"   data-k="-">-</div>
     <div class="mk"   data-k="&amp;">&amp;</div>
     <div class="mk"   data-k="`">`</div>
+    <div class="mk mk-img" id="mob-img-btn" title="写真を送る">📷</div>
   </div>
 
   <!-- Gameboy D-pad (Gameboy theme + mobile only) -->
@@ -1222,6 +1226,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
           <button class="gb-sk" data-k="|">|</button>
           <button class="gb-sk" data-k="/">/</button>
           <button class="gb-sk" data-k="~">~</button>
+          <button class="gb-sk gb-img-btn" id="gb-img-btn">📷</button>
         </div>
       </div>
       <!-- A/B ボタン -->
@@ -1925,6 +1930,67 @@ function setConn(on) {
 document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
   el.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
 });
+
+// ── モバイル写真アップロード ──
+async function _mobUploadFiles(files) {
+  const imgBtn = document.getElementById('mob-img-btn');
+  const gbBtn  = document.getElementById('gb-img-btn');
+  const setLoading = (on) => {
+    if (imgBtn) imgBtn.textContent = on ? '⏳' : '📷';
+    if (gbBtn)  gbBtn.textContent  = on ? '⏳' : '📷';
+  };
+  setLoading(true);
+  for (const file of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const tok = localStorage.getItem(LS.token) || '';
+      const r = await fetch(`/_upload?token=${encodeURIComponent(tok)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream', 'x-filename': encodeURIComponent(file.name), 'x-noa-token': tok },
+        body: buf,
+      });
+      if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || r.status); }
+      const { path: fpath } = await r.json();
+      // @path をターミナルに注入
+      send({ type: 'input', data: '@' + fpath + ' ' });
+      // プレビューペインにも表示
+      _showUploadPreview(fpath, file);
+      _showToast('📷 ' + file.name + ' を送信しました');
+    } catch(err) {
+      _showToast('❌ アップロード失敗: ' + err.message);
+    }
+  }
+  setLoading(false);
+}
+
+function _showUploadPreview(fpath, file) {
+  try {
+    const imgEl  = document.getElementById('editor-media-img');
+    const imgView = document.getElementById('editor-image-view');
+    if (!imgEl || !imgView) return;
+    const objUrl = URL.createObjectURL(file);
+    imgEl.src = objUrl;
+    imgEl.style.display = '';
+    imgView.classList.remove('hidden');
+    imgView.classList.add('pad');
+  } catch {}
+}
+
+(function(){
+  const input  = document.getElementById('mob-img-input');
+  const mobBtn = document.getElementById('mob-img-btn');
+  const gbBtn  = document.getElementById('gb-img-btn');
+  if (!input) return;
+  input.addEventListener('change', () => {
+    if (input.files && input.files.length > 0) {
+      _mobUploadFiles([...input.files]);
+      input.value = ''; // 同じファイルを再送できるようにリセット
+    }
+  });
+  const openPicker = (e) => { e.preventDefault(); input.click(); };
+  if (mobBtn) { mobBtn.addEventListener('touchstart', openPicker, { passive:false }); mobBtn.addEventListener('click', openPicker); }
+  if (gbBtn)  { gbBtn.addEventListener('touchstart',  openPicker, { passive:false }); gbBtn.addEventListener('click',  openPicker); }
+})();
 
 // ── Gameboy D-pad ──
 (function(){
