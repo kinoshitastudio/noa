@@ -6,7 +6,7 @@
 <title>Noa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
@@ -35,23 +35,255 @@ body.light{
   --accent:#7a6e00; --accent2:rgba(122,110,0,0.1);
   --danger:#ff3b30; --ok:#34c759;
 }
+/* ── GAMEBOY YELLOW (GBC Yellow) ── */
 body.gameboy{
-  --bg:#0f380f; --bg2:#1e521e; --bg3:#306230;
-  --bg-glass:rgba(15,56,15,0.82);
-  --line:rgba(155,188,15,.14); --line2:rgba(155,188,15,.26);
-  --ink:#9bbc0f; --dim:rgba(155,188,15,.6); --faint:rgba(155,188,15,.3);
-  --accent:#9bbc0f; --accent2:rgba(155,188,15,0.12);
-  --danger:#ff6000; --ok:#9bbc0f;
-  --radius:2px; --radius-sm:1px;
+  --bg:#0a2e00; --bg2:#143d00; --bg3:#1e5200;
+  --bg-glass:rgba(10,46,0,0.95);
+  --line:rgba(139,172,15,.15); --line2:rgba(139,172,15,.28);
+  --ink:#8bac0f; --dim:rgba(139,172,15,.62); --faint:rgba(139,172,15,.32);
+  --accent:#f0ca00; --accent2:rgba(240,202,0,.14);
+  --danger:#ff5500; --ok:#9bbc0f;
+  --radius:0px; --radius-sm:0px;
+  --blur:none;
+  image-rendering:pixelated;
 }
-body.gameboy *{letter-spacing:.04em}
+/* VT323 ドットマトリクスフォント */
+body.gameboy,body.gameboy *{
+  font-family:'VT323','Space Mono',monospace!important;
+  letter-spacing:.06em;
+  -webkit-font-smoothing:none;
+  font-smoothing:none;
+}
+/* ヘッダー: GBC 黄色ボディ */
+body.gameboy header{
+  background:#c8a200!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  border-bottom:3px solid #0a2e00!important;
+  box-shadow:0 3px 0 #8b7000;
+}
+body.gameboy .logo{color:#0a2e00!important}
+body.gameboy .logo em{color:#0a2e00!important;text-shadow:none}
+body.gameboy .hd-group{background:#a88c00!important;border-radius:0!important;border:2px solid #7a6600!important}
+body.gameboy .hd-btn{color:#0a2e00!important;border-radius:0!important}
+body.gameboy .hd-btn:hover{background:rgba(0,0,0,.2)!important;color:#0a2e00!important}
+body.gameboy .hd-btn.active{color:#0a2e00!important;background:rgba(0,0,0,.3)!important}
+body.gameboy #sess-label,body.gameboy #sess-label-input{color:#0a2e00!important}
+/* パネルヘッダー */
+body.gameboy .p-header{background:#1e5200!important;border-bottom:2px solid #8bac0f!important}
+body.gameboy .p-header,.p-colbtn,.ph-label{color:#8bac0f!important}
+body.gameboy .p-colbtn{color:#8bac0f!important}
+/* LCD グロー & シャドウ */
+body.gameboy #term-wrap{
+  box-shadow:inset 0 0 40px rgba(0,0,0,.5),0 0 0 4px #0a2e00;
+}
+/* スキャンライン（全体） */
+body.gameboy::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9995;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,transparent 3px,
+    rgba(0,0,0,.12) 3px,rgba(0,0,0,.12) 4px
+  );
+}
+/* ピクセルボーダー */
+body.gameboy #shell{border:2px solid #1e5200!important}
+body.gameboy .sp-panel{border-radius:0!important}
+/* AB ボタン風 カラーアクセント */
+body.gameboy #btn-new svg{stroke:#f0ca00}
+body.gameboy #btn-mic svg{stroke:#f04000}
+
+/* ── OP-1 ── */
 body.op1{
-  --bg:#f2f1ef; --bg2:#e8e7e5; --bg3:#d5d4d1;
-  --bg-glass:rgba(242,241,239,0.82);
-  --line:rgba(0,0,0,.07); --line2:rgba(0,0,0,.14);
-  --ink:#1a1918; --dim:rgba(26,25,24,.55); --faint:rgba(26,25,24,.28);
-  --accent:#ff6b35; --accent2:rgba(255,107,53,0.1);
-  --danger:#e02020; --ok:#4caf50;
+  --bg:#f4f1ea; --bg2:#ede9e0; --bg3:#d8d3c8;
+  --bg-glass:rgba(244,241,234,0.6);
+  --line:rgba(0,0,0,.07); --line2:rgba(0,0,0,.15);
+  --ink:#1a1714; --dim:rgba(26,23,20,.56); --faint:rgba(26,23,20,.28);
+  --accent:#ff6b35; --accent2:rgba(255,107,53,.1);
+  --danger:#d42020; --ok:#3aaa5c;
+  --radius:6px; --radius-sm:4px;
+  --blur:blur(24px) saturate(200%);
+}
+/* ヘッダー: OP-1 本体（ダーク）*/
+body.op1 header{
+  background:#232120!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  border-bottom:none!important;
+  box-shadow:0 2px 0 #111,0 4px 16px rgba(0,0,0,.3);
+  height:50px!important;
+}
+body.op1 .logo{color:#f4f1ea!important;font-size:.75rem!important}
+body.op1 .logo em{color:#ff6b35!important}
+body.op1 #sess-label{color:rgba(244,241,234,.65)!important}
+/* エンコーダーノブ風ボタン */
+body.op1 .hd-group{background:#181614!important;border-radius:40px!important;padding:4px 6px!important;border:1px solid #444!important}
+body.op1 .hd-btn{
+  border-radius:50%!important;
+  width:30px!important;height:30px!important;
+  background:radial-gradient(circle at 38% 32%, #555, #1a1a1a)!important;
+  box-shadow:0 3px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18)!important;
+  border:1px solid #444!important;
+  color:rgba(255,255,255,.7)!important;
+  transition:box-shadow .15s,transform .1s!important;
+}
+body.op1 .hd-btn:hover{
+  box-shadow:0 3px 10px rgba(255,107,53,.5),inset 0 1px 0 rgba(255,255,255,.18)!important;
+  transform:rotate(15deg)!important;
+  color:#fff!important;
+}
+body.op1 .hd-btn.active{
+  box-shadow:0 0 0 2px #ff6b35,0 3px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18)!important;
+  color:#ff6b35!important;
+}
+/* ターミナル: OLED ブラック */
+body.op1 #term-wrap{
+  background:#080706!important;
+  border-right:1px solid rgba(255,255,255,.06)!important;
+  box-shadow:inset 0 0 60px rgba(0,0,0,.8);
+}
+/* パネル: Liquid Glass */
+body.op1 #editor-main{
+  background:rgba(244,241,234,.35)!important;
+  backdrop-filter:blur(20px) saturate(180%)!important;
+  -webkit-backdrop-filter:blur(20px) saturate(180%)!important;
+}
+body.op1 #right-pane{
+  background:rgba(244,241,234,.45)!important;
+  backdrop-filter:blur(24px) saturate(200%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(200%)!important;
+  border-left:1px solid rgba(255,255,255,.7)!important;
+}
+body.op1 .p-header{
+  background:rgba(244,241,234,.55)!important;
+  backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;
+  border-bottom:1px solid rgba(255,255,255,.5)!important;
+}
+/* 各パネルに色帯（OP-1 のキーカラー） */
+body.op1 #term-wrap .p-header{border-top:2px solid #ff6b35!important}
+body.op1 #editor-main .p-header{border-top:2px solid #4caf8a!important}
+body.op1 #right-pane .p-header{border-top:2px solid #5b8cff!important}
+/* OP-1 のファンクションドット（ヘッダー右端） */
+body.op1 header::after{
+  content:'';position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  width:6px;height:6px;border-radius:50%;
+  background:#ff6b35;box-shadow:-10px 0 0 #f0c020,-20px 0 0 #4caf8a,-30px 0 0 #5b8cff;
+}
+/* ─── OP-1 設定パネル: iOS 26 Liquid Glass ─── */
+body.op1 #settings-overlay{
+  background:rgba(100,90,80,.18)!important;
+  backdrop-filter:blur(60px) saturate(180%)!important;
+  -webkit-backdrop-filter:blur(60px) saturate(180%)!important;
+}
+body.op1 #sp-settings{
+  background:rgba(255,255,255,.22)!important;
+  backdrop-filter:blur(80px) saturate(220%) brightness(1.08)!important;
+  -webkit-backdrop-filter:blur(80px) saturate(220%) brightness(1.08)!important;
+  border:1px solid rgba(255,255,255,.6)!important;
+  border-radius:24px!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.06),
+    0 40px 100px rgba(0,0,0,.22),
+    0 0 0 0.5px rgba(255,255,255,.4)!important;
+  overflow:hidden;
+}
+body.op1 .sp-section{
+  border-bottom:1px solid rgba(255,255,255,.35)!important;
+}
+body.op1 .sp-label{color:rgba(50,40,30,.5)!important}
+body.op1 .sp-btn{
+  background:rgba(255,255,255,.4)!important;
+  border:1px solid rgba(255,255,255,.6)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.12)!important;
+  color:#1a1714!important;
+  border-radius:8px!important;
+}
+body.op1 .sp-btn:hover{
+  background:rgba(255,255,255,.65)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 2px 6px rgba(0,0,0,.15),0 0 0 1px rgba(255,107,53,.4)!important;
+}
+body.op1 .sp-btn.active{
+  background:rgba(255,107,53,.15)!important;
+  border-color:rgba(255,107,53,.6)!important;
+  color:#ff6b35!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 0 0 1px rgba(255,107,53,.3)!important;
+}
+/* OP-1 ファンクションキーカラー (テーマボタン) */
+body.op1 .sp-btn[data-theme="dark"]   { border-top:3px solid #5b8cff!important }
+body.op1 .sp-btn[data-theme="light"]  { border-top:3px solid #f0c020!important }
+body.op1 .sp-btn[data-theme="gameboy"]{ border-top:3px solid #4caf8a!important }
+body.op1 .sp-btn[data-theme="op1"]    { border-top:3px solid #ff6b35!important }
+/* OP-1 コンテキストメニューも Liquid Glass */
+body.op1 #ft-ctx{
+  background:rgba(255,255,255,.35)!important;
+  backdrop-filter:blur(60px) saturate(200%)!important;
+  -webkit-backdrop-filter:blur(60px) saturate(200%)!important;
+  border:1px solid rgba(255,255,255,.65)!important;
+  border-radius:14px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 20px 60px rgba(0,0,0,.18)!important;
+}
+body.op1 #ft-ctx button{border-radius:10px!important;color:#1a1714!important}
+body.op1 #ft-ctx button:hover{background:rgba(255,107,53,.1)!important}
+/* OP-1 ヘッダーボタンに機能ラベル（OP-1 のファンクションキー風） */
+body.op1 .hd-btn[id]::before{
+  content:attr(data-op1-key);position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+  font-size:.38rem;letter-spacing:.04em;color:rgba(244,241,234,.4);
+  font-family:-apple-system,sans-serif;pointer-events:none;
+}
+body.op1 .hd-btn{position:relative!important}
+/* ─── GAMEBOY ピクセルアート強化 ─── */
+/* SVG をピクセル文字に差し替え */
+body.gameboy .hd-btn svg{display:none!important}
+body.gameboy .hd-btn::after{
+  font-family:'VT323',monospace!important;font-size:1.1rem!important;
+  color:#0a2e00!important;line-height:1;pointer-events:none;
+}
+body.gameboy #btn-new::after   {content:'[+]'}
+body.gameboy #btn-fd::after    {content:'A-'}
+body.gameboy #btn-fi::after    {content:'A+'}
+body.gameboy #btn-mic::after   {content:'[♪]'}
+body.gameboy #btn-theme::after {content:'[*]'}
+body.gameboy #btn-settings::after{content:'[=]'}
+/* GB ボタン: AB ボタン風（丸なし、ピクセル枠） */
+body.gameboy .hd-btn{
+  width:32px!important;height:32px!important;
+  background:#b8a000!important;
+  border:2px solid #0a2e00!important;
+  border-radius:0!important;
+  box-shadow:2px 2px 0 #0a2e00!important;
+}
+body.gameboy .hd-btn:hover{
+  background:#f0ca00!important;
+  box-shadow:2px 2px 0 #0a2e00,0 0 8px rgba(240,202,0,.4)!important;
+  transform:translate(-1px,-1px);
+}
+body.gameboy .hd-btn.active{
+  box-shadow:inset 2px 2px 0 #0a2e00!important;
+  transform:translate(2px,2px)!important;
+}
+/* GB ファイルツリー: ピクセルフォントで拡大 */
+body.gameboy .ft-icon{font-size:.95rem!important;font-family:'VT323',monospace!important}
+body.gameboy .ft-chevron{font-family:'VT323',monospace!important;font-size:.85rem!important}
+body.gameboy .ft-name{font-family:'VT323',monospace!important;font-size:.88rem!important}
+/* GB 設定パネル: ピクセルボーダー */
+body.gameboy #sp-settings{
+  border:3px solid #8bac0f!important;
+  border-radius:0!important;
+  box-shadow:4px 4px 0 #0a2e00!important;
+  background:#0a2e00!important;
+}
+body.gameboy .sp-btn{
+  border:2px solid #8bac0f!important;border-radius:0!important;
+  box-shadow:2px 2px 0 #0a2e00!important;font-size:.9rem!important;
+}
+body.gameboy .sp-btn:hover{
+  background:#8bac0f!important;color:#0a2e00!important;
+  box-shadow:none!important;transform:translate(1px,1px)!important;
+}
+/* GB セレクトボックス */
+body.gameboy select{
+  background:#0a2e00!important;color:#8bac0f!important;
+  border:2px solid #8bac0f!important;border-radius:0!important;
+  font-family:'VT323',monospace!important;font-size:.95rem!important;
 }
 html,body{height:100%;height:100dvh;background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,'Space Mono',monospace;
@@ -187,7 +419,16 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #cc-todos.open{max-height:240px}
-.cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0;align-items:center}
+.cct-progress{padding:4px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.cct-progress-bar{flex:1;height:3px;background:var(--line2);border-radius:2px;overflow:hidden}
+.cct-progress-fill{height:100%;background:var(--ok);border-radius:2px;transition:width .3s}
+.cct-progress-label{font-size:.58rem;color:var(--dim);font-family:'Space Mono',monospace;white-space:nowrap}
+.cct-add{display:flex;align-items:center;gap:4px;padding:4px 8px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cct-add-input{flex:1;background:none;border:none;outline:none;font-size:.62rem;color:var(--ink);font-family:'Space Mono',monospace;padding:2px 4px}
+.cct-add-input::placeholder{color:var(--faint)}
+.cct-add-btn{flex-shrink:0;font-size:.7rem;color:var(--dim);background:none;border:none;cursor:pointer;padding:0 4px;line-height:1;transition:color var(--trans)}
+.cct-add-btn:hover{color:var(--accent)}
 .cct-tab{padding:2px 7px;font-size:.6rem;border-radius:2px;cursor:pointer;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);font-family:'Space Mono',monospace;white-space:nowrap;line-height:1.6;transition:all var(--trans)}
 .cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
 .cct-tab-open{padding:2px 5px;font-size:.65rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.7;transition:opacity var(--trans),color var(--trans),transform var(--trans)}
@@ -586,30 +827,30 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 
     <!-- グループ1: セッション -->
     <div class="hd-group">
-      <div class="hd-btn" id="btn-new" title="New session (⌘T)">
+      <div class="hd-btn" id="btn-new" data-op1-key="NEW" title="New session (⌘T)">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
     </div>
 
     <!-- グループ2: フォント + マイク -->
     <div class="hd-group">
-      <div class="hd-btn" id="btn-fd" title="Font −">
+      <div class="hd-btn" id="btn-fd" data-op1-key="A-" title="Font −">
         <svg viewBox="0 0 24 24"><text x="4" y="17" font-size="10" fill="currentColor" stroke="none" font-family="monospace">A</text></svg>
       </div>
-      <div class="hd-btn" id="btn-fi" title="Font +">
+      <div class="hd-btn" id="btn-fi" data-op1-key="A+" title="Font +">
         <svg viewBox="0 0 24 24"><text x="3" y="17" font-size="15" fill="currentColor" stroke="none" font-family="monospace">A</text></svg>
       </div>
-      <div class="hd-btn" id="btn-mic" title="Voice input (⌘M)">
+      <div class="hd-btn" id="btn-mic" data-op1-key="MIC" title="Voice input (⌘M)">
         <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
       </div>
     </div>
 
     <!-- グループ3: テーマ + 設定 -->
     <div class="hd-group">
-      <div class="hd-btn" id="btn-theme" title="Theme">
+      <div class="hd-btn" id="btn-theme" data-op1-key="THM" title="Theme">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       </div>
-      <div class="hd-btn" id="btn-settings" title="Settings">
+      <div class="hd-btn" id="btn-settings" data-op1-key="SET" title="Settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
     </div>
@@ -638,7 +879,18 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         <div id="th-toggle-btn" class="p-colbtn" title="シェル履歴" style="font-size:.68rem">&gt;_</div>
       </div>
       <!-- Claude Code タスクパネル -->
-      <div id="cc-todos"><div id="cct-tabs" class="cct-tabs" style="display:none"></div><div id="cct-list"></div></div>
+      <div id="cc-todos">
+        <div id="cct-tabs" class="cct-tabs" style="display:none"></div>
+        <div id="cct-progress" class="cct-progress" style="display:none">
+          <span class="cct-progress-label" id="cct-progress-label">0/0</span>
+          <div class="cct-progress-bar"><div class="cct-progress-fill" id="cct-progress-fill" style="width:0%"></div></div>
+        </div>
+        <div id="cct-add" class="cct-add" style="display:none">
+          <input id="cct-add-input" class="cct-add-input" placeholder="+ タスクを追加…" maxlength="120">
+          <button class="cct-add-btn" id="cct-add-btn">↵</button>
+        </div>
+        <div id="cct-list"></div>
+      </div>
       <!-- Claude Code 会話履歴パネル -->
       <div id="cc-history"></div>
       <!-- シェル履歴パネル -->
@@ -776,6 +1028,15 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         <div style="font-size:.58rem;color:var(--dim);margin-bottom:.5rem;letter-spacing:.04em">Cloudflare Tunnel <span id="sp-tunnel-status" style="color:var(--faint)">— 起動中…</span></div>
         <div id="sp-tunnel-url" style="font-size:.58rem;color:var(--ink);word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:.4rem .6rem;margin-bottom:.5rem;font-family:'Space Mono',monospace;letter-spacing:.02em;line-height:1.5">—</div>
         <button class="sp-btn" id="sp-tunnel-copy" style="width:100%">COPY TUNNEL URL</button>
+      </div>
+      <div class="sp-section">
+        <div class="sp-label">CLAUDE MODEL</div>
+        <select id="sp-claude-model" style="width:100%;padding:.3rem .5rem;background:var(--bg3);border:1px solid var(--line);color:var(--ink);font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.06em;margin-bottom:.6rem;outline:none">
+          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+          <option value="claude-opus-4-8">Opus 4.8</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+        </select>
+        <button class="sp-btn" id="sp-claude-launch" style="width:100%">LAUNCH CLAUDE</button>
       </div>
     </div>
   </div>
@@ -2195,16 +2456,40 @@ function _cctUpdateTabs() {
 }
 
 function _cctRender(project) {
-  const listEl  = document.getElementById('cct-list');
-  const ccTodos = document.getElementById('cc-todos');
-  const ccBtn   = document.getElementById('cc-todo-btn');
-  const todos   = _todosData[project] || [];
+  const listEl     = document.getElementById('cct-list');
+  const ccTodos    = document.getElementById('cc-todos');
+  const ccBtn      = document.getElementById('cc-todo-btn');
+  const progressEl = document.getElementById('cct-progress');
+  const fillEl     = document.getElementById('cct-progress-fill');
+  const labelEl    = document.getElementById('cct-progress-label');
+  const addEl      = document.getElementById('cct-add');
+  const todos      = _todosData[project] || [];
+
   listEl.innerHTML = '';
+
   if (todos.length === 0) {
-    listEl.innerHTML = '<div style="padding:.5rem .75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace">— タスクなし —</div>';
+    progressEl.style.display = 'none';
+    addEl.style.display = '';
+    listEl.innerHTML = '<div style="padding:.4rem .75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace">— タスクなし —</div>';
     return;
   }
-  todos.forEach(t => {
+
+  // 進捗バー
+  const done  = todos.filter(t => t.status === 'completed').length;
+  const pct   = Math.round((done / todos.length) * 100);
+  fillEl.style.width   = pct + '%';
+  labelEl.textContent  = `${done}/${todos.length}`;
+  progressEl.style.display = '';
+  addEl.style.display  = '';
+
+  // in_progress → pending → completed の順で表示
+  const sorted = [
+    ...todos.filter(t => t.status === 'in_progress'),
+    ...todos.filter(t => !t.status || t.status === 'pending'),
+    ...todos.filter(t => t.status === 'completed'),
+  ];
+
+  sorted.forEach(t => {
     const item = document.createElement('div');
     item.className = 'cct-item';
     const st = t.status || 'pending';
@@ -2212,11 +2497,42 @@ function _cctRender(project) {
     item.innerHTML = `<span class="cct-check ${st}">${checkIcon}</span><span class="cct-label ${st}">${(t.content||t.description||'').replace(/</g,'&lt;')}</span>`;
     listEl.appendChild(item);
   });
-  ccBtn.style.display = '';
+
+  ccBtn.style.opacity = '1';
   const hasActive = todos.some(t => t.status === 'in_progress');
   if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
   else ccBtn.style.color = '';
 }
+
+// タスク手動追加
+function _cctAddTask(content) {
+  const project = _activeProject;
+  if (!project || !content.trim()) return;
+  const todos = _todosData[project] || [];
+  todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString() });
+  _todosData[project] = todos;
+  // サーバーに保存（noa-todos 経由）
+  const tok = localStorage.getItem(LS.token) || '';
+  fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project, todos })
+  }).catch(() => {});
+  _cctRender(project);
+  setTimeout(_updateTermTop, 230);
+}
+
+document.getElementById('cct-add-btn').addEventListener('click', () => {
+  const inp = document.getElementById('cct-add-input');
+  _cctAddTask(inp.value);
+  inp.value = '';
+});
+document.getElementById('cct-add-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const inp = e.target;
+  _cctAddTask(inp.value);
+  inp.value = '';
+});
 
 function _updateTermTop() {
   const termEl = document.getElementById('term-el');
@@ -2413,6 +2729,21 @@ document.getElementById('sp-efi-btn').addEventListener('click', () => {
 document.getElementById('sp-efd-btn').addEventListener('click', () => {
   setEditorFontSize(-1); const el = document.getElementById('sp-efont-val'); if (el) el.textContent = _editorFontSize;
 });
+
+// ── Claude model selection ──
+(function(){
+  const $sel = document.getElementById('sp-claude-model');
+  const $launch = document.getElementById('sp-claude-launch');
+  if (!$sel || !$launch) return;
+  const saved = localStorage.getItem('noa_claude_model') || 'claude-sonnet-4-6';
+  $sel.value = saved;
+  $sel.addEventListener('change', () => localStorage.setItem('noa_claude_model', $sel.value));
+  $launch.addEventListener('click', () => {
+    const model = $sel.value;
+    send({ type: 'input', data: `claude --model ${model}\n` });
+    closeSettings();
+  });
+})();
 
 // ── mobile tab switching ──
 (function(){
