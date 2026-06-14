@@ -649,6 +649,65 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   -webkit-tap-highlight-color:transparent}
 .mk:active{background:rgba(255,255,255,.1)}
 .mk.w{min-width:58px}
+/* ── Gameboy D-pad (mobile only, gameboy theme) ── */
+#gb-dpad{
+  display:none;flex-direction:column;flex-shrink:0;
+  background:#1a1a00;border-top:3px solid #0a2e00;
+  padding:6px 10px;gap:4px;align-items:center;
+  user-select:none;-webkit-user-select:none;
+}
+@media(pointer:coarse){body.gameboy #gb-dpad{display:flex}body.gameboy #mobkeys{display:none}}
+/* D-pad 十字 3×3グリッド */
+.gb-cross{
+  display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px);
+  gap:0;position:relative;
+}
+.gb-cross-empty{background:transparent}
+.gb-dir{
+  background:#2a2a00;border:2px solid #0a2e00;color:#8bac0f;
+  font-family:'VT323',monospace;font-size:1.4rem;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.6),inset 0 1px 0 rgba(139,172,15,.2);
+  transition:background .06s,transform .06s;
+}
+.gb-dir:active,.gb-dir.pressed{
+  background:#3a3a00;box-shadow:inset 0 2px 0 rgba(0,0,0,.6);transform:scale(.94);
+}
+/* 上下は縦長、左右は横長にして十字キーらしく */
+.gb-dir[data-dir="up"]   {border-radius:6px 6px 0 0}
+.gb-dir[data-dir="down"] {border-radius:0 0 6px 6px}
+.gb-dir[data-dir="left"] {border-radius:6px 0 0 6px}
+.gb-dir[data-dir="right"]{border-radius:0 6px 6px 0}
+/* 中心ハブ（装飾） */
+.gb-cross-hub{
+  background:#1a2a00;border:2px solid #0a2e00;
+  border-radius:50%;margin:8px;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.5);
+}
+/* AB ボタン + サブキー行 */
+.gb-bottom{display:flex;align-items:center;justify-content:space-between;width:100%;gap:6px}
+.gb-subkeys{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.gb-sk{
+  background:#1e3300;border:2px solid #0a2e00;color:#8bac0f;
+  font-family:'VT323',monospace;font-size:.85rem;
+  padding:3px 7px;border-radius:0;cursor:pointer;
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.5);
+  -webkit-tap-highlight-color:transparent;white-space:nowrap;
+}
+.gb-sk:active{box-shadow:inset 0 1px 0 rgba(0,0,0,.5);transform:translateY(1px)}
+.gb-ab-wrap{display:flex;gap:8px;align-items:center}
+.gb-ab{
+  width:44px;height:44px;border-radius:50%;
+  font-family:'VT323',monospace;font-size:1.2rem;color:#0a2e00;font-weight:700;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:0 4px 0 rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.15);
+  transition:box-shadow .06s,transform .06s;
+}
+.gb-ab:active{box-shadow:0 1px 0 rgba(0,0,0,.5),inset 0 2px 0 rgba(0,0,0,.3);transform:translateY(3px)}
+.gb-b-btn{background:radial-gradient(circle at 38% 35%,#666,#2a2a2a)}
+.gb-a-btn{background:radial-gradient(circle at 38% 35%,#cc3300,#660000)}
 
 /* ── resize handles ── */
 #main-resize-handle,#right-resize-handle{flex-shrink:0;cursor:col-resize;
@@ -1132,6 +1191,51 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <div class="mk"   data-k="-">-</div>
     <div class="mk"   data-k="&amp;">&amp;</div>
     <div class="mk"   data-k="`">`</div>
+  </div>
+
+  <!-- Gameboy D-pad (Gameboy theme + mobile only) -->
+  <div id="gb-dpad">
+    <div style="display:flex;align-items:center;gap:16px;width:100%;justify-content:center">
+      <!-- 十字キー -->
+      <div class="gb-cross">
+        <div class="gb-cross-empty"></div>
+        <button class="gb-dir" data-dir="up">▲</button>
+        <div class="gb-cross-empty"></div>
+        <button class="gb-dir" data-dir="left">◀</button>
+        <div class="gb-cross-hub"></div>
+        <button class="gb-dir" data-dir="right">▶</button>
+        <div class="gb-cross-empty"></div>
+        <button class="gb-dir" data-dir="down">▼</button>
+        <div class="gb-cross-empty"></div>
+      </div>
+      <!-- サブキー (SELECT/START 風) -->
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+        <div style="display:flex;gap:6px">
+          <button class="gb-sk" data-k="&#x1b;">ESC</button>
+          <button class="gb-sk" data-k="&#x03;">^C</button>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="gb-sk" data-k="&#x09;">TAB</button>
+          <button class="gb-sk" data-k="&#x0c;">^L</button>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="gb-sk" data-k="|">|</button>
+          <button class="gb-sk" data-k="/">/</button>
+          <button class="gb-sk" data-k="~">~</button>
+        </div>
+      </div>
+      <!-- A/B ボタン -->
+      <div class="gb-ab-wrap">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-family:'VT323',monospace;font-size:.65rem;color:#8bac0f;letter-spacing:.1em">B</div>
+          <button class="gb-ab gb-b-btn" data-dir="b">B</button>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-family:'VT323',monospace;font-size:.65rem;color:#cc3300;letter-spacing:.1em">A</div>
+          <button class="gb-ab gb-a-btn" data-dir="a">A</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1821,6 +1925,49 @@ function setConn(on) {
 document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
   el.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
 });
+
+// ── Gameboy D-pad ──
+(function(){
+  const DIR_KEY = {
+    up:    '\x1b[A',
+    down:  '\x1b[B',
+    right: '\x1b[C',
+    left:  '\x1b[D',
+    a:     '\r',
+    b:     '\x1b',
+  };
+  const REPEAT_DIRS = new Set(['up','down','left','right']);
+
+  document.querySelectorAll('#gb-dpad .gb-dir').forEach(btn => {
+    const dir = btn.dataset.dir;
+    if (!REPEAT_DIRS.has(dir)) { btn.addEventListener('click', () => send({ type:'input', data: DIR_KEY[dir] })); return; }
+    let _pt = null, _ri = null;
+    const doSend = () => send({ type:'input', data: DIR_KEY[dir] });
+    const stop = () => { clearTimeout(_pt); clearInterval(_ri); _pt = _ri = null; btn.classList.remove('pressed'); };
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      btn.classList.add('pressed');
+      doSend();
+      _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350);
+    }, { passive:false });
+    btn.addEventListener('touchend',   stop, { passive:true });
+    btn.addEventListener('touchcancel',stop, { passive:true });
+    btn.addEventListener('mousedown', () => { doSend(); _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350); });
+    btn.addEventListener('mouseup',   stop);
+    btn.addEventListener('mouseleave',stop);
+  });
+
+  document.querySelectorAll('#gb-dpad .gb-ab').forEach(btn => {
+    const dir = btn.dataset.dir;
+    btn.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data: DIR_KEY[dir] }); }, { passive:false });
+    btn.addEventListener('click', () => send({ type:'input', data: DIR_KEY[dir] }));
+  });
+
+  document.querySelectorAll('#gb-dpad .gb-sk').forEach(btn => {
+    btn.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data: btn.dataset.k }); }, { passive:false });
+    btn.addEventListener('click', () => send({ type:'input', data: btn.dataset.k }));
+  });
+})();
 
 // ── KEYBOARD SHORTCUTS ──
 document.addEventListener('keydown', e => {
