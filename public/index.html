@@ -1187,7 +1187,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   <input type="file" id="mob-img-input" accept="image/*,video/*" multiple style="display:none">
 
   <div id="mobkeys">
-    <div class="mk mk-img" id="mob-img-btn" title="写真を送る" style="border-right:1px solid var(--accent);opacity:.85;font-size:1rem">📷</div>
+    <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="border-right:1px solid var(--accent);opacity:.85;font-size:1rem;cursor:pointer">📷</label>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
@@ -1952,7 +1952,7 @@ function setConn(on) {
 
 // ── MOBILE KEYS ──
 document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
-  el.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
+  el.addEventListener('touchstart', e => { if (!el.dataset.k) return; e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
 });
 
 // ── モバイル写真アップロード ──
@@ -2011,8 +2011,8 @@ function _showUploadPreview(fpath, file) {
       input.value = ''; // 同じファイルを再送できるようにリセット
     }
   });
-  const openPicker = (e) => { e.preventDefault(); input.click(); };
-  if (mobBtn) { mobBtn.addEventListener('touchstart', openPicker, { passive:false }); mobBtn.addEventListener('click', openPicker); }
+  // mobBtn は <label for="mob-img-input"> なので JS不要。gbBtn のみ手動トリガー
+  const openPicker = (e) => { e.preventDefault(); e.stopPropagation(); input.click(); };
   if (gbBtn)  { gbBtn.addEventListener('touchstart',  openPicker, { passive:false }); gbBtn.addEventListener('click',  openPicker); }
 })();
 
