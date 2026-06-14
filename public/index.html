@@ -467,6 +467,13 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   border-right:1px solid var(--line)}
 #term-wrap.p-col{width:0!important;border:none!important;min-width:0;overflow:hidden}
 /* #term-el inset is overridden in panel collapse section (28px top for header) */
+/* ── ターミナル スクロールバー + ボトムボタン ── */
+#term-scrollbar{position:absolute;right:0;top:0;bottom:0;width:3px;pointer-events:none;z-index:10}
+#term-scrollbar-thumb{position:absolute;right:0;width:3px;border-radius:2px;background:var(--line2);opacity:0;transition:opacity .2s;min-height:20px}
+#term-wrap:hover #term-scrollbar-thumb,#term-wrap.sb-active #term-scrollbar-thumb{opacity:.7}
+#term-to-bottom{position:absolute;right:6px;bottom:8px;width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1px solid var(--line2);color:var(--dim);font-size:.65rem;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:11;transition:opacity .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#term-to-bottom.visible{display:flex}
+#term-to-bottom:hover{color:var(--accent);border-color:var(--accent)}
 #drop-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
   background:rgba(14,14,12,.85);border:2px dashed var(--accent);z-index:50;pointer-events:none;
   font-size:.8rem;letter-spacing:.12em;color:var(--accent)}
@@ -1032,6 +1039,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <!-- シェル履歴パネル -->
       <div id="task-history"></div>
       <div id="term-el"></div>
+      <div id="term-scrollbar"><div id="term-scrollbar-thumb"></div></div>
+      <div id="term-to-bottom" title="最下部へ">↓</div>
       <div id="voice-badge"><span id="voice-text"></span><canvas id="voice-wave" width="240" height="44"></canvas><small>Enter で停止/再開 · 無音3秒で自動停止</small></div>
       <div id="drop-overlay">DROP TO SEND @PATH</div>
     </div>
@@ -1413,7 +1422,9 @@ function onMsg(msg) {
         // 最後に使ったプロジェクトを復元、なければ新セッション
         const lastProj = localStorage.getItem('noa_last_project');
         if (lastProj) {
-          setTimeout(() => _switchToProjectSession(lastProj), 100);
+          // 既存セッションにアタッチを試みる (新規作成しない)
+          const projSessId = `proj:${lastProj}`;
+          send({ type:'attach', id: projSessId, cols:term.cols, rows:term.rows, name: lastProj });
         } else {
           send({ type:'new', cols:term.cols, rows:term.rows });
         }
@@ -1488,10 +1499,14 @@ function onMsg(msg) {
       break;
     case 'todos-update': {
       if (!Array.isArray(msg.todos)) break;
-      _todosData[msg.project || 'default'] = msg.todos;
+      const proj = msg.project || 'default';
+      // localStorage の手動タスクをマージ（サーバー再起動でも消えない）
+      const savedManuals = _loadManualTodos(proj);
+      const merged = [...msg.todos, ...savedManuals.filter(m => !msg.todos.some(t => t.content === m.content))];
+      _todosData[proj] = merged;
       _cctUpdateTabs();
-      if (!_activeProject || _activeProject === (msg.project || 'default')) {
-        _activeProject = msg.project || 'default';
+      if (!_activeProject || _activeProject === proj) {
+        _activeProject = proj;
         _cctRender(_activeProject);
       }
       setTimeout(_updateTermTop, 230);
@@ -1617,6 +1632,38 @@ function initTerm() {
   fit = new FitCls();
   term.loadAddon(fit);
   term.open(termEl);
+
+  // ── スクロールバー + ボトムボタン ──
+  (function(){
+    const thumb   = document.getElementById('term-scrollbar-thumb');
+    const toBot   = document.getElementById('term-to-bottom');
+    const sbWrap  = document.getElementById('term-wrap');
+    let sbTimer;
+    function updateSb() {
+      const buf    = term.buffer.active;
+      const total  = buf.length;
+      const viewH  = term.rows;
+      if (total <= viewH) { thumb.style.opacity = '0'; toBot.classList.remove('visible'); return; }
+      const termH  = termEl.offsetHeight || 300;
+      const ratio  = viewH / total;
+      const thumbH = Math.max(20, termH * ratio);
+      const scrollTop = buf.viewportY;
+      const maxScroll = total - viewH;
+      const thumbTop  = (scrollTop / maxScroll) * (termH - thumbH);
+      thumb.style.height = thumbH + 'px';
+      thumb.style.top    = thumbTop + 'px';
+      sbWrap.classList.add('sb-active');
+      clearTimeout(sbTimer);
+      sbTimer = setTimeout(() => sbWrap.classList.remove('sb-active'), 1200);
+      const atBottom = scrollTop >= maxScroll - 2;
+      toBot.classList.toggle('visible', !atBottom);
+    }
+    term.onScroll(updateSb);
+    term.onLineFeed(updateSb);
+    toBot.addEventListener('click', () => term.scrollToBottom());
+    toBot.addEventListener('touchstart', (e) => { e.preventDefault(); term.scrollToBottom(); }, { passive:false });
+  })();
+
   // 初期化直後はまだレイアウトが確定していないことがあるので遅延fit
   requestAnimationFrame(() => { try { fit.fit(); } catch {} });
   setTimeout(() => { try { fit.fit(); } catch {} }, 100);
@@ -2718,6 +2765,15 @@ let _thOpen   = false;
 let _cchOpen  = false;
 let _todosData = {};
 let _projectPaths = {}; // { [project]: '/absolute/path' }
+
+// 手動タスクを localStorage に永続化（サーバー再起動耐性）
+function _loadManualTodos(project) {
+  try { return JSON.parse(localStorage.getItem('noa_manual_' + project) || '[]'); } catch { return []; }
+}
+function _saveManualTodos(project, todos) {
+  const manuals = todos.filter(t => t.manual);
+  try { localStorage.setItem('noa_manual_' + project, JSON.stringify(manuals)); } catch {}
+}
 let _activeProject = null;
 // カスタムタブ（ユーザーが自由に追加したタブ）
 let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
@@ -2926,6 +2982,7 @@ function _cctToggle(project, task) {
   if (isCustom) { _customTodosData[project] = todos; _saveCustomTabs(); }
   else {
     _todosData[project] = todos;
+    _saveManualTodos(project, todos);
     const tok = localStorage.getItem(LS.token) || '';
     fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
@@ -2943,6 +3000,7 @@ function _cctDelete(project, task) {
   if (isCustom) { _customTodosData[project] = todos; _saveCustomTabs(); }
   else {
     _todosData[project] = todos;
+    _saveManualTodos(project, todos);
     const tok = localStorage.getItem(LS.token) || '';
     fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
@@ -2969,6 +3027,7 @@ function _cctAddTask(content) {
     const todos = _todosData[project] || [];
     todos.push({ content: content.trim(), status: 'pending', id: Date.now().toString(), manual: true });
     _todosData[project] = todos;
+    _saveManualTodos(project, todos);
     const tok = localStorage.getItem(LS.token) || '';
     fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-noa-source': 'user' },
