@@ -182,6 +182,9 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #cc-todos.open{max-height:240px}
+.cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cct-tab{padding:2px 7px;font-size:.6rem;border-radius:2px;cursor:pointer;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);font-family:'Space Mono',monospace;white-space:nowrap;line-height:1.6;transition:all var(--trans)}
+.cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
 .cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
@@ -633,7 +636,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         <div id="th-toggle-btn" class="p-colbtn" title="シェル履歴" style="font-size:.68rem">&gt;_</div>
       </div>
       <!-- Claude Code タスクパネル -->
-      <div id="cc-todos"></div>
+      <div id="cc-todos"><div id="cct-tabs" class="cct-tabs" style="display:none"></div><div id="cct-list"></div></div>
       <!-- Claude Code 会話履歴パネル -->
       <div id="cc-history"></div>
       <!-- シェル履歴パネル -->
@@ -995,28 +998,20 @@ function onMsg(msg) {
       if (msg.cwd && _ftFileRoot) _ftHighlightCwd(msg.cwd);
       break;
     case 'todos-update': {
-      const ccTodos = document.getElementById('cc-todos');
-      const ccBtn   = document.getElementById('cc-todo-btn');
-      if (!ccTodos || !Array.isArray(msg.todos)) break;
-      const todos = msg.todos;
-      ccTodos.innerHTML = '';
-      if (todos.length === 0) {
-        ccBtn.style.display = 'none';
-        ccTodos.classList.remove('open');
-        setTimeout(_updateTermTop, 230);
-        break;
+      if (!Array.isArray(msg.todos)) break;
+      _todosData[msg.project || 'default'] = msg.todos;
+      _cctUpdateTabs();
+      if (!_activeProject || _activeProject === (msg.project || 'default')) {
+        _activeProject = msg.project || 'default';
+        _cctRender(_activeProject);
       }
-      todos.forEach(t => {
-        const item = document.createElement('div');
-        item.className = 'cct-item';
-        const st = t.status || 'pending';
-        const checkIcon = st === 'completed' ? '✓' : st === 'in_progress' ? '▶' : '';
-        item.innerHTML = `<span class="cct-check ${st}">${checkIcon}</span><span class="cct-label ${st}">${(t.content || t.description || '').replace(/</g,'&lt;')}</span>`;
-        ccTodos.appendChild(item);
-      });
-      ccBtn.style.display = '';
-      const hasActive = todos.some(t => t.status === 'in_progress');
-      if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
+      setTimeout(_updateTermTop, 230);
+      break;
+    }
+    case 'todos-projects': {
+      if (!msg.projects) break;
+      _todosData = msg.projects;
+      _cctUpdateTabs();
       setTimeout(_updateTermTop, 230);
       break;
     }
@@ -2100,6 +2095,66 @@ const ccHistoryEl   = document.getElementById('cc-history');
 const thToggleBtn   = document.getElementById('th-toggle-btn');
 let _thOpen   = false;
 let _cchOpen  = false;
+let _todosData = {};
+let _activeProject = null;
+
+function _cctUpdateTabs() {
+  const tabsEl = document.getElementById('cct-tabs');
+  const ccBtn  = document.getElementById('cc-todo-btn');
+  const projects = Object.keys(_todosData).filter(p => (_todosData[p] || []).length > 0);
+  if (projects.length === 0) {
+    ccBtn.style.display = 'none';
+    tabsEl.style.display = 'none';
+    document.getElementById('cc-todos').classList.remove('open');
+    return;
+  }
+  ccBtn.style.display = '';
+  if (!_activeProject || !projects.includes(_activeProject)) _activeProject = projects[0];
+  if (projects.length <= 1) {
+    tabsEl.style.display = 'none';
+  } else {
+    tabsEl.style.display = 'flex';
+    tabsEl.innerHTML = '';
+    projects.forEach(p => {
+      const tab = document.createElement('div');
+      tab.className = 'cct-tab' + (p === _activeProject ? ' active' : '');
+      const inProg = (_todosData[p] || []).filter(t => t.status === 'in_progress').length;
+      tab.textContent = p + (inProg ? ` ▶` : '');
+      tab.addEventListener('click', () => {
+        _activeProject = p;
+        _cctUpdateTabs();
+        _cctRender(p);
+        setTimeout(_updateTermTop, 230);
+      });
+      tabsEl.appendChild(tab);
+    });
+  }
+  _cctRender(_activeProject);
+}
+
+function _cctRender(project) {
+  const listEl  = document.getElementById('cct-list');
+  const ccTodos = document.getElementById('cc-todos');
+  const ccBtn   = document.getElementById('cc-todo-btn');
+  const todos   = _todosData[project] || [];
+  listEl.innerHTML = '';
+  if (todos.length === 0) {
+    ccTodos.classList.remove('open');
+    return;
+  }
+  todos.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'cct-item';
+    const st = t.status || 'pending';
+    const checkIcon = st === 'completed' ? '✓' : st === 'in_progress' ? '▶' : '';
+    item.innerHTML = `<span class="cct-check ${st}">${checkIcon}</span><span class="cct-label ${st}">${(t.content||t.description||'').replace(/</g,'&lt;')}</span>`;
+    listEl.appendChild(item);
+  });
+  ccBtn.style.display = '';
+  const hasActive = todos.some(t => t.status === 'in_progress');
+  if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
+  else ccBtn.style.color = '';
+}
 
 function _updateTermTop() {
   const termEl = document.getElementById('term-el');

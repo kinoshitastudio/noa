@@ -142,15 +142,16 @@ app.post('/_upload', requireAuth, express.raw({ type: '*/*', limit: '50mb' }), (
 });
 
 // ── Claude Code Todos API: hookから受け取り全WSクライアントへブロードキャスト ──
-let _lastTodos = [];
+let _lastTodos = {}; // { project: todos[] }
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   const token = req.query.token || req.headers['x-noa-token'] || '';
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
-  const todos = Array.isArray(req.body?.todos) ? req.body.todos : [];
-  _lastTodos = todos;
-  const msg = JSON.stringify({ type: 'todos-update', todos });
+  const todos   = Array.isArray(req.body?.todos) ? req.body.todos : [];
+  const project = req.body?.project || 'default';
+  _lastTodos[project] = todos;
+  const msg = JSON.stringify({ type: 'todos-update', project, todos });
   wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
-  res.json({ ok: true, count: todos.length });
+  res.json({ ok: true, count: todos.length, project });
 });
 
 // ── session store ───────────────────────────────────────────────
@@ -246,7 +247,7 @@ wss.on('connection', ws => {
       }
       authed = true;
       ws.send(JSON.stringify({ type: 'auth', ok: true, sessions: sessionList() }));
-      if (_lastTodos.length > 0) ws.send(JSON.stringify({ type: 'todos-update', todos: _lastTodos }));
+      if (Object.keys(_lastTodos).length > 0) ws.send(JSON.stringify({ type: 'todos-projects', projects: _lastTodos }));
       return;
     }
 
