@@ -2786,7 +2786,8 @@ function _cctUpdateTabs() {
         e.stopPropagation();
         if (!confirm(`"${p}" タブとプロジェクトセッションを削除しますか？`)) return;
         try {
-          await fetch(`/noa-project-delete?token=${encodeURIComponent(_tok())}`, {
+          const tok = localStorage.getItem(LS.token) || new URLSearchParams(location.search).get('token') || '';
+          await fetch(`/noa-project-delete?token=${encodeURIComponent(tok)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ project: p })
           });
