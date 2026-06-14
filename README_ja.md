@@ -2,7 +2,7 @@
 
 iPhone やリモートデバイスから [Claude Code](https://claude.ai/code) を操作するための、ブラウザベースのターミナルです。
 
-Charlie Holtz の [Conductor](https://github.com/cbh123) にインスパイアされた3カラムレイアウト。
+3カラムレイアウトで、ターミナル・エディター・ファイルツリーを一画面に。
 
 ```
 TERM  │  EDITOR  │  FILES + PREVIEW

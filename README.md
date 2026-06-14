@@ -2,7 +2,7 @@
 
 A browser-based terminal for your Mac — built for running [Claude Code](https://claude.ai/code) from iPhone or any remote device.
 
-Three-column layout inspired by [Conductor](https://github.com/cbh123) by Charlie Holtz.
+Three-column layout: terminal, editor, and file tree in one view.
 
 ```
 TERM  │  EDITOR  │  FILES + PREVIEW
