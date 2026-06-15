@@ -1510,8 +1510,8 @@ function onMsg(msg) {
       // プロジェクトセッション復元: proj: 系は全て project-session で統一
       // (attach と project-session で挙動差があり、attach は _currentSessId を設定しないため不整合が起きていた)
       const _restoreProj = paramSession
-        || (attachId && attachId.startsWith('proj:') ? attachId.replace(/^proj:/, '') : null)
-        || localStorage.getItem('noa_last_project');
+        || (attachId && attachId.startsWith('proj:') ? attachId.replace(/^proj:/, '') : null);
+        // localStorage の最終プロジェクトは自動復元しない（ユーザーが明示的に選ぶ）
 
       if (_restoreProj) {
         window._currentSessId = `proj:${_restoreProj}`;
@@ -3069,7 +3069,8 @@ function _cctUpdateTabs() {
     document.getElementById('cc-todos').classList.remove('open');
     return;
   }
-  if (!_activeProject || !allTabs.includes(_activeProject)) _activeProject = allTabs[0];
+  // 無効になったプロジェクトなら null に戻す（自動選択はしない）
+  if (_activeProject && !allTabs.includes(_activeProject)) _activeProject = null;
 
   tabsEl.style.display = 'flex';
   tabsEl.innerHTML = '';
@@ -3085,11 +3086,15 @@ function _cctUpdateTabs() {
     tab.textContent = p + (inProg ? ' ▶' : '');
     tab.addEventListener('click', () => {
       _activeProject = p;
-      _notifications.delete(p); // タブ選択で通知クリア
+      _notifications.delete(p);
       _cctUpdateTabs();
       _cctRender(p);
-      // プロジェクトタブなら同一ウィンドウ内でターミナルセッションを切り替え
-      if (!isCustom) { _switchToProjectSession(p); localStorage.setItem('noa_last_project', p); }
+      if (!isCustom) {
+        _switchToProjectSession(p);
+        localStorage.setItem('noa_last_project', p);
+        // プロジェクトフォルダをファイルツリーで表示
+        if (_projectPaths[p]) _ftHighlightCwd(_projectPaths[p]);
+      }
       setTimeout(_updateTermTop, 230);
     });
     if (isCustom) {
@@ -3139,6 +3144,27 @@ function _cctUpdateTabs() {
     }
     tabsEl.appendChild(wrap);
   });
+
+  // 「解除」ボタン — アクティブなプロジェクトがある時だけ表示
+  if (_activeProject) {
+    const relBtn = document.createElement('button');
+    relBtn.title = 'プロジェクト固定を解除';
+    relBtn.textContent = '解除';
+    relBtn.style.cssText = 'margin-left:auto;font-size:.55rem;color:var(--dim);font-family:"Space Mono",monospace;background:none;border:1px solid var(--line2);border-radius:2px;cursor:pointer;padding:1px 6px;white-space:nowrap;flex-shrink:0;transition:color var(--trans)';
+    relBtn.addEventListener('mouseenter', () => relBtn.style.color = 'var(--warn)');
+    relBtn.addEventListener('mouseleave', () => relBtn.style.color = 'var(--dim)');
+    relBtn.addEventListener('click', () => {
+      _activeProject = null;
+      localStorage.removeItem('noa_last_project');
+      _cctUpdateTabs();
+      _cctRender(null);
+      // 新規フレッシュセッションに切り替え
+      send({ type:'new', cols:term.cols, rows:term.rows });
+      // ファイルツリーをルートに戻す
+      _doLoadFileTree();
+    });
+    tabsEl.appendChild(relBtn);
+  }
 
   // + ボタン（常に末尾）
   const addBtn = document.createElement('button');
