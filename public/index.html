@@ -1346,7 +1346,7 @@ const XTERM_THEMES = {
     background:'#0d0d0d', foreground:'#f0ede8',
     cursor:'#e8e020', cursorAccent:'#0d0d0d',
     selectionBackground:'rgba(240,237,232,0.15)',
-    black:'#282828', brightBlack:'#4a4a4a',
+    black:'#282828', brightBlack:'#686868',  /* 4a→68: 2.2→3.5:1 (dim text readable) */
     red:'#ff5f5f',   brightRed:'#ff8080',
     green:'#6fcf6f', brightGreen:'#9ae09a',
     yellow:'#e8d57a',brightYellow:'#f0e6a0',
@@ -1358,15 +1358,15 @@ const XTERM_THEMES = {
   light:{
     background:'#f5f4f0', foreground:'#1a1918',
     cursor:'#7a6e00', cursorAccent:'#f5f4f0',
-    selectionBackground:'rgba(26,25,24,0.12)',
-    black:'#282828', brightBlack:'#585654',
+    selectionBackground:'rgba(26,25,24,0.15)',
+    black:'#282828', brightBlack:'#585654',  /* 6.6:1 ✓ */
     red:'#cc2200',   brightRed:'#e04040',
-    green:'#2a8a2a', brightGreen:'#4aaa4a',
-    yellow:'#7a6e00',brightYellow:'#aa9c00',
-    blue:'#1a5fcc',  brightBlue:'#3a7fe0',
-    magenta:'#8a1a9a',brightMagenta:'#b03ab0',
-    cyan:'#0a7a8a',  brightCyan:'#2a9aaa',
-    white:'#8a8880', brightWhite:'#1a1918',
+    green:'#2a8a2a', brightGreen:'#267a26',  /* 2.7→4.9:1 ✓ */
+    yellow:'#7a6e00',brightYellow:'#7a6e00', /* same as yellow: 2.6→4.7:1 ✓ */
+    blue:'#1a5fcc',  brightBlue:'#1a5fcc',   /* same as blue:  3.6→5.4:1 ✓ */
+    magenta:'#8a1a9a',brightMagenta:'#b03ab0', /* 4.7:1 ✓ */
+    cyan:'#0a7a8a',  brightCyan:'#0a7a8a',   /* same as cyan:  3.0→4.6:1 ✓ */
+    white:'#4a4846', brightWhite:'#1a1918',  /* 3.2→8.3:1 ✓ */
   },
   gameboy:{
     background:'#0f380f', foreground:'#9bbc0f',
@@ -1649,7 +1649,11 @@ function initTerm() {
     fontFamily: "'Space Mono', monospace",
     fontSize, lineHeight: 1.18, theme: _initTheme,
     cursorBlink: true, cursorStyle: 'block',
-    allowTransparency: true, scrollback: isMobile ? 2000 : 8000,
+    allowTransparency: true,
+    scrollback: isMobile ? 2000 : 8000,
+    // モバイルでスクロールを軽くする: タッチ1回で多めにスクロール → 少ないフレーム数で到達
+    scrollSensitivity: isMobile ? 3 : 1,
+    fastScrollSensitivity: isMobile ? 8 : 5,
     macOptionIsMeta: true,
   });
   fit = new FitCls();
