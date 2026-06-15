@@ -507,6 +507,11 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-progress-fill{height:100%;background:var(--ok);border-radius:2px;transition:width .3s}
 .cct-progress-label{font-size:.58rem;color:var(--dim);font-family:'Space Mono',monospace;white-space:nowrap}
 .cct-add{display:flex;align-items:center;gap:4px;padding:4px 8px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cct-reg-trigger{width:100%;text-align:left;padding:4px 8px;font-size:.6rem;color:var(--dim);font-family:'Space Mono',monospace;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;transition:color var(--trans);flex-shrink:0}
+.cct-reg-trigger:hover{color:var(--accent)}
+.cct-reg-form{flex-direction:column;gap:3px;padding:5px 8px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cct-reg-row{display:flex;align-items:center;gap:4px}
+.cct-reg-label{font-size:.55rem;color:var(--faint);font-family:'Space Mono',monospace;width:38px;flex-shrink:0}
 .cct-add-input{flex:1;background:none;border:none;outline:none;font-size:.62rem;color:var(--ink);font-family:'Space Mono',monospace;padding:2px 4px}
 .cct-add-input::placeholder{color:var(--faint)}
 .cct-add-btn{flex-shrink:0;font-size:.7rem;color:var(--dim);background:none;border:none;cursor:pointer;padding:0 4px;line-height:1;transition:color var(--trans)}
@@ -1083,6 +1088,18 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         <div id="cct-add" class="cct-add" style="display:none">
           <input id="cct-add-input" class="cct-add-input" placeholder="+ タスクを追加…" maxlength="120">
           <button class="cct-add-btn" id="cct-add-btn">↵</button>
+        </div>
+        <button id="cct-reg-trigger" class="cct-reg-trigger" style="display:none">⬡ パスで登録…</button>
+        <div id="cct-reg-form" class="cct-add cct-reg-form" style="display:none">
+          <div class="cct-reg-row">
+            <span class="cct-reg-label">名前</span>
+            <input id="cct-reg-name" class="cct-add-input" placeholder="例: noa" maxlength="40">
+          </div>
+          <div class="cct-reg-row">
+            <span class="cct-reg-label">パス</span>
+            <input id="cct-reg-path" class="cct-add-input" placeholder="/Users/…/noa" maxlength="300">
+            <button class="cct-add-btn" id="cct-reg-submit">↵</button>
+          </div>
         </div>
         <div id="cct-list"></div>
       </div>
@@ -3417,17 +3434,52 @@ document.getElementById('cc-todo-btn').addEventListener('click', () => {
   if (willOpen) {
     ccTodos.classList.add('open');
     document.getElementById('cc-todo-btn').style.opacity = '1';
+    document.getElementById('cct-reg-trigger').style.display = '';
     // タスクが0件ならヒントを表示
     if (Object.keys(_todosData).length === 0) {
       document.getElementById('cct-list').innerHTML =
         '<div style="padding:.75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace;line-height:1.8">' +
         'Claude Code でタスクを作成すると<br>ここにプロジェクト別に表示されます。<br><br>' +
-        '<span style="color:var(--dim)">フォルダを右クリック →<br>⬡ プロジェクト登録 で手動追加も可<br>タブバーの <b>+</b> で自由タブを追加できます</span>' +
+        '<span style="color:var(--dim)">ファイルツリーで右クリック（PCのみ）または<br>上の <b>⬡ パスで登録</b> からパスを直接入力できます</span>' +
         '</div>';
     }
   }
   setTimeout(_updateTermTop, 230);
 });
+
+// ⬡ パスで登録 フォーム
+(function() {
+  const trigger  = document.getElementById('cct-reg-trigger');
+  const form     = document.getElementById('cct-reg-form');
+  const nameInp  = document.getElementById('cct-reg-name');
+  const pathInp  = document.getElementById('cct-reg-path');
+  const submitBtn= document.getElementById('cct-reg-submit');
+
+  trigger.addEventListener('click', () => {
+    const open = form.style.display !== 'none' && form.style.display !== '';
+    form.style.display = open ? 'none' : 'flex';
+    if (!open) setTimeout(() => nameInp.focus(), 50);
+  });
+
+  async function doRegister() {
+    const name = nameInp.value.trim();
+    const path = pathInp.value.trim();
+    if (!name || !path) return;
+    const tok = localStorage.getItem('noa_token') || new URLSearchParams(location.search).get('token') || '';
+    try {
+      await fetch(`/noa-todos?token=${encodeURIComponent(tok)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: name, todos: [], path })
+      });
+      nameInp.value = ''; pathInp.value = '';
+      form.style.display = 'none';
+    } catch(e) { alert('登録失敗: ' + e.message); }
+  }
+
+  submitBtn.addEventListener('click', doRegister);
+  pathInp.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+  nameInp.addEventListener('keydown', e => { if (e.key === 'Enter') pathInp.focus(); });
+})();
 
 document.getElementById('cc-hist-btn').addEventListener('click', () => {
   const willOpen = !_cchOpen;
