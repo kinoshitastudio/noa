@@ -468,7 +468,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 
 /* ── terminal (LEFT column) ── */
 #term-wrap{width:280px;flex-shrink:0;overflow:hidden;position:relative;
-  border-right:1px solid var(--line)}
+  border-right:1px solid var(--line);overscroll-behavior:none}
 #term-wrap.p-col{width:0!important;border:none!important;min-width:0;overflow:hidden}
 /* #term-el inset is overridden in panel collapse section (28px top for header) */
 /* ── ターミナル スクロールバー + ボトムボタン ── */
@@ -862,7 +862,11 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .p-header .ph-label{font-size:.5rem;letter-spacing:.2em;color:var(--faint);
   text-transform:uppercase;font-weight:700}
 /* terminal: canvas start position is set dynamically by JS (_updateTermTop) */
-#term-el{position:absolute;inset:28px 4px 4px 4px}
+#term-el{position:absolute;inset:28px 4px 4px 4px;
+  /* GPU合成レイヤーに昇格: モバイルでのスクロールジャンクを軽減 */
+  will-change:transform;-webkit-transform:translateZ(0);transform:translateZ(0);
+  /* iOS ラバーバンド無効: ターミナル端でページが揺れない */
+  overscroll-behavior:none;-webkit-overflow-scrolling:auto}
 /* inline preview strip uses same .p-bar style; hidden class controls visibility */
 #eip-col-bar.hidden{display:none!important}
 /* Monaco editor collapse */
@@ -1634,11 +1638,13 @@ function handleLink(e, url) {
 function initTerm() {
   if (term) { try { fit?.fit(); } catch {} return; }
   const FitCls = FitAddon?.FitAddon ?? window.FitAddon;
+  // モバイルはスクロールバッファを減らして描画負荷を軽減
+  const isMobile = window.matchMedia('(pointer:coarse)').matches;
   term = new Terminal({
     fontFamily: "'Space Mono', monospace",
     fontSize, lineHeight: 1.18, theme: THEME,
     cursorBlink: true, cursorStyle: 'block',
-    allowTransparency: true, scrollback: 8000,
+    allowTransparency: true, scrollback: isMobile ? 2000 : 8000,
     macOptionIsMeta: true,
   });
   fit = new FitCls();
