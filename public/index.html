@@ -99,6 +99,8 @@ body.gameboy .sp-panel{border-radius:0!important}
 /* AB ボタン風 カラーアクセント */
 body.gameboy #btn-new svg{stroke:#f0ca00}
 body.gameboy #btn-mic svg{stroke:#f04000}
+/* ↓ ボタン: LCD グリーンで視認性確保 */
+body.gameboy #term-to-bottom{background:#1e5200;border-color:#8bac0f;color:#8bac0f;border-radius:0}
 
 /* ══════════════════════════════════════════════
    OP-1 テーマ — Teenage Engineering 実機準拠
@@ -193,6 +195,8 @@ body.op1 #editor-main .ph-label{color:var(--op-green)!important;letter-spacing:.
 body.op1 #right-pane .ph-label{color:var(--op-blue)!important;letter-spacing:.25em!important}
 body.op1 .p-colbtn{color:rgba(28,24,20,.35)!important}
 body.op1 #term-wrap .p-colbtn{color:rgba(240,235,224,.4)!important}
+/* ↓ ボタン: OP-1 クリーム背景に埋もれないようコントラスト確保 */
+body.op1 #term-to-bottom{background:#1E1C1A;border-color:var(--op-orange);color:var(--op-orange)}
 /* ─── エディタツールバーボタン: 物理キー風 ─── */
 body.op1 .etbtn{
   background:linear-gradient(180deg,#EDE7DA 0%,#D8D1C0 100%)!important;
@@ -1668,6 +1672,8 @@ function initTerm() {
     }
     term.onScroll(updateSb);
     term.onLineFeed(updateSb);
+    // モバイルタッチスクロール中も updateSb を呼ぶ (onScroll が発火しない場合の補完)
+    termEl.addEventListener('touchmove', () => requestAnimationFrame(updateSb), { passive: true });
     toBot.addEventListener('click', () => term.scrollToBottom());
     toBot.addEventListener('touchstart', (e) => { e.preventDefault(); term.scrollToBottom(); }, { passive:false });
   })();
@@ -1760,14 +1766,20 @@ function initTerm() {
 
   term.focus();
 
-  // モバイル: ターミナルエリアをタップしたら必ずフォーカスを戻す
+  // モバイル: タップとスクロールを区別してフォーカス制御
+  // e.preventDefault() は使わない → xterm.js の scroll イベントを妨げない
+  let _tapStartX = 0, _tapStartY = 0;
+  termEl.addEventListener('touchstart', (e) => {
+    _tapStartX = e.touches[0].clientX;
+    _tapStartY = e.touches[0].clientY;
+  }, { passive: true });
   termEl.addEventListener('touchend', (e) => {
-    // リンク・ボタン以外のタップでフォーカス
-    if (!e.target.closest('a, button, [data-k]')) {
-      e.preventDefault();
-      term.focus();
-    }
-  }, { passive: false });
+    if (e.target.closest('a, button, [data-k]')) return;
+    const dx = Math.abs(e.changedTouches[0].clientX - _tapStartX);
+    const dy = Math.abs(e.changedTouches[0].clientY - _tapStartY);
+    // 8px 以内の移動 = タップ → フォーカス、それ以上 = スクロール → 何もしない
+    if (dx < 8 && dy < 8) term.focus();
+  }, { passive: true });
 
   new ResizeObserver(() => {
     requestAnimationFrame(() => { try { fit.fit(); sendResize(); } catch {} });
