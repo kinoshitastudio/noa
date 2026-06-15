@@ -669,6 +669,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .mk:active{background:rgba(255,255,255,.1)}
 .mk.w{min-width:58px}
 #mob-mic-btn.mic-on{color:var(--danger);animation:pulse 1s infinite;opacity:1;border-color:var(--danger)}
+#mob-copy-btn[data-sel]{background:var(--accent)!important;color:#fff!important;font-weight:700!important;font-size:.6rem!important;opacity:1!important;border-radius:3px}
 /* ── Gameboy D-pad (mobile only, gameboy theme) ── */
 #gb-dpad{
   display:none;flex-direction:column;flex-shrink:0;
@@ -1207,7 +1208,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 
   <div id="mobkeys">
     <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="opacity:.85;font-size:1rem;cursor:pointer">📷</label>
-    <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">🎤</div>
+    <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;opacity:.85">🎤</div>
+    <div class="mk" id="mob-copy-btn" title="選択テキストをコピー" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">📋</div>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
@@ -1360,8 +1362,8 @@ const XTERM_THEMES = {
     cursor:'#7a6e00', cursorAccent:'#f5f4f0',
     selectionBackground:'rgba(26,25,24,0.15)',
     black:'#282828', brightBlack:'#585654',  /* 6.6:1 ✓ */
-    red:'#cc2200',   brightRed:'#e04040',
-    green:'#2a8a2a', brightGreen:'#267a26',  /* 2.7→4.9:1 ✓ */
+    red:'#cc2200',   brightRed:'#c02020',    /* 3.8→5.5:1 ✓ */
+    green:'#1e7020', brightGreen:'#267a26',  /* 4.0→5.6:1 ✓ */
     yellow:'#7a6e00',brightYellow:'#7a6e00', /* same as yellow: 2.6→4.7:1 ✓ */
     blue:'#1a5fcc',  brightBlue:'#1a5fcc',   /* same as blue:  3.6→5.4:1 ✓ */
     magenta:'#8a1a9a',brightMagenta:'#b03ab0', /* 4.7:1 ✓ */
@@ -1384,14 +1386,14 @@ const XTERM_THEMES = {
   op1:{
     background:'#f2f1ef', foreground:'#1a1918',
     cursor:'#ff6b35', cursorAccent:'#f2f1ef',
-    selectionBackground:'rgba(255,107,53,0.25)',
+    selectionBackground:'rgba(50,80,120,0.12)', /* 旧オレンジ→中立ブルーグレー(選択時コントラスト改善) */
     black:'#282726', brightBlack:'#3a3836',  /* darkened: cream bg で contrast 確保 */
-    red:'#cc1a00',   brightRed:'#e03020',
-    green:'#1a7a20', brightGreen:'#2a9030',  /* darkened: 旧 #4caf50 は cream で見えない */
-    yellow:'#9a6c00',brightYellow:'#c89010',
-    blue:'#2860c0',  brightBlue:'#4a80d9',
-    magenta:'#7a3aaf',brightMagenta:'#9a4acf',
-    cyan:'#0a7a8f',  brightCyan:'#1a9aaf',
+    red:'#cc1a00',   brightRed:'#c01a00',    /* 4.0→5.5:1 ✓ */
+    green:'#176520', brightGreen:'#1e7020',  /* 選択背景でも4.6:1 ✓ */
+    yellow:'#7a5200',brightYellow:'#7a5200', /* 4.1→6.1:1 ✓  (旧 brightYellow #c89010 は 2.5:1 で最悪) */
+    blue:'#2860c0',  brightBlue:'#2060b8',   /* 3.5→5.4:1 ✓ */
+    magenta:'#7a3aaf',brightMagenta:'#8030aa', /* 4.4→6.4:1 ✓ */
+    cyan:'#0a6070',  brightCyan:'#0a6070',   /* 4.4/3.0→6.4:1 ✓ */
     white:'#4a4846', brightWhite:'#1a1918',  /* darkened: 旧 #9a9896 は contrast 2.7:1 で不合格 */
   },
 };
@@ -1655,6 +1657,7 @@ function initTerm() {
     scrollSensitivity: isMobile ? 3 : 1,
     fastScrollSensitivity: isMobile ? 8 : 5,
     macOptionIsMeta: true,
+    copyOnSelect: true,
   });
   fit = new FitCls();
   term.loadAddon(fit);
@@ -2061,6 +2064,80 @@ document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
   const toggle = (e) => { e.preventDefault(); micOn ? stopMic() : startMic(); };
   mobMic.addEventListener('touchstart', toggle, { passive:false });
   mobMic.addEventListener('click', toggle);
+})();
+
+// モバイルコピーボタン
+// clipboard API (HTTPS) 成功 → 即コピー＋トースト
+// HTTP など失敗時    → テキストパネルを表示し iOS ネイティブコピーバブルで対応
+(function(){
+  const btn = document.getElementById('mob-copy-btn');
+  if (!btn) return;
+
+  // ── トースト ──
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(8px);background:rgba(20,20,20,.88);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:600;pointer-events:none;z-index:9999;opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap';
+  document.body.appendChild(toast);
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity='0'; toast.style.transform='translateX(-50%) translateY(8px)'; }, 2000);
+  }
+
+  // ── コピーパネル（iOS HTTP 用）──
+  function showPanel(text) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;flex-direction:column';
+    const box = document.createElement('div');
+    box.style.cssText = 'display:flex;flex-direction:column;flex:1;background:var(--bg,#111);margin:0;padding:0;overflow:hidden';
+    // ヘッダー
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line,#333);flex-shrink:0';
+    const hint = document.createElement('span');
+    hint.style.cssText = 'font-size:12px;color:var(--dim,#888)';
+    hint.textContent = '長押し → コピー で選択部分をコピー';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'border:none;background:none;color:var(--fg,#eee);font-size:18px;padding:4px 8px;cursor:pointer;line-height:1';
+    hdr.append(hint, closeBtn);
+    // テキストエリア（ほぼ全画面）
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.readOnly = true;
+    ta.style.cssText = 'flex:1;width:100%;border:none;padding:12px;font-family:monospace;font-size:12px;line-height:1.5;resize:none;background:var(--bg2,#1a1a1a);color:var(--fg,#eee);box-sizing:border-box;outline:none;-webkit-overflow-scrolling:touch';
+    box.append(hdr, ta);
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    // 末尾にスクロール＆全選択
+    setTimeout(() => {
+      ta.focus();
+      ta.scrollTop = ta.scrollHeight;
+      ta.setSelectionRange(0, ta.value.length);
+    }, 100);
+    const close = () => document.body.removeChild(ov);
+    closeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); close(); }, { passive:false });
+  }
+
+  btn.addEventListener('touchstart', async (e) => {
+    e.preventDefault();
+    if (!term) return;
+    const hasSel = term.getSelection().length > 0;
+    if (!hasSel) term.selectAll();
+    const text = term.getSelection();
+    term.clearSelection();
+    if (!text) { showToast('テキストなし'); return; }
+
+    // HTTPS 環境なら clipboard API で即コピー
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(hasSel ? 'コピーしました' : 'すべてコピーしました');
+        btn.textContent = '✓'; setTimeout(() => { btn.textContent = '📋'; }, 1200);
+        return;
+      } catch {}
+    }
+    // HTTP (Tailscale) → パネル表示
+    showPanel(text);
+  }, { passive: false });
 })();
 
 // ── モバイル写真アップロード ──
