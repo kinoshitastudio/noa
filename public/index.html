@@ -2556,6 +2556,24 @@ function _ftBuildItem(item, depth, parentEl) {
   }
 
   row.addEventListener('contextmenu', e => window._ftShowCtx && window._ftShowCtx(e, item));
+
+  // モバイル: 長押し(600ms)で右クリックメニューと同じコンテキストメニューを表示
+  let _lpTimer = null;
+  row.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    _lpTimer = setTimeout(() => {
+      _lpTimer = null;
+      if (window._ftShowCtx) {
+        window._ftShowCtx({ preventDefault(){}, stopPropagation(){}, clientX: t.clientX, clientY: t.clientY }, item);
+      }
+    }, 600);
+  }, { passive: true });
+  const _lpCancel = () => { clearTimeout(_lpTimer); _lpTimer = null; };
+  row.addEventListener('touchend',    _lpCancel, { passive: true });
+  row.addEventListener('touchcancel', _lpCancel, { passive: true });
+  row.addEventListener('touchmove',   _lpCancel, { passive: true });
+
   parentEl.appendChild(row);
 
   if (item.isDir) {
