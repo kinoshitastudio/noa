@@ -668,6 +668,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   -webkit-tap-highlight-color:transparent}
 .mk:active{background:rgba(255,255,255,.1)}
 .mk.w{min-width:58px}
+#mob-mic-btn.mic-on{color:var(--danger);animation:pulse 1s infinite;opacity:1;border-color:var(--danger)}
 /* ── Gameboy D-pad (mobile only, gameboy theme) ── */
 #gb-dpad{
   display:none;flex-direction:column;flex-shrink:0;
@@ -1205,7 +1206,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   <input type="file" id="mob-img-input" accept="image/*,video/*" multiple style="display:none">
 
   <div id="mobkeys">
-    <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="border-right:1px solid var(--accent);opacity:.85;font-size:1rem;cursor:pointer">📷</label>
+    <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="opacity:.85;font-size:1rem;cursor:pointer">📷</label>
+    <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">🎤</div>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
@@ -1382,15 +1384,15 @@ const XTERM_THEMES = {
   op1:{
     background:'#f2f1ef', foreground:'#1a1918',
     cursor:'#ff6b35', cursorAccent:'#f2f1ef',
-    selectionBackground:'rgba(255,107,53,0.18)',
-    black:'#282726', brightBlack:'#585654',
-    red:'#e02020',   brightRed:'#ff4040',
-    green:'#4caf50', brightGreen:'#6ccf70',
-    yellow:'#c89010',brightYellow:'#e8b030',
-    blue:'#4a80d9',  brightBlue:'#6aa0f9',
-    magenta:'#9a4acf',brightMagenta:'#ba6aef',
-    cyan:'#1a9aaf',  brightCyan:'#3abacf',
-    white:'#9a9896', brightWhite:'#1a1918',
+    selectionBackground:'rgba(255,107,53,0.25)',
+    black:'#282726', brightBlack:'#3a3836',  /* darkened: cream bg で contrast 確保 */
+    red:'#cc1a00',   brightRed:'#e03020',
+    green:'#1a7a20', brightGreen:'#2a9030',  /* darkened: 旧 #4caf50 は cream で見えない */
+    yellow:'#9a6c00',brightYellow:'#c89010',
+    blue:'#2860c0',  brightBlue:'#4a80d9',
+    magenta:'#7a3aaf',brightMagenta:'#9a4acf',
+    cyan:'#0a7a8f',  brightCyan:'#1a9aaf',
+    white:'#4a4846', brightWhite:'#1a1918',  /* darkened: 旧 #9a9896 は contrast 2.7:1 で不合格 */
   },
 };
 const THEME = XTERM_THEMES.dark;
@@ -1638,11 +1640,14 @@ function handleLink(e, url) {
 function initTerm() {
   if (term) { try { fit?.fit(); } catch {} return; }
   const FitCls = FitAddon?.FitAddon ?? window.FitAddon;
+  // 保存済みテーマを初期値に使う → リロード時に一瞬黒くなるのを防ぐ
+  const _savedThemeName = localStorage.getItem('noa_theme') || 'dark';
+  const _initTheme = XTERM_THEMES[_savedThemeName] || THEME;
   // モバイルはスクロールバッファを減らして描画負荷を軽減
   const isMobile = window.matchMedia('(pointer:coarse)').matches;
   term = new Terminal({
     fontFamily: "'Space Mono', monospace",
-    fontSize, lineHeight: 1.18, theme: THEME,
+    fontSize, lineHeight: 1.18, theme: _initTheme,
     cursorBlink: true, cursorStyle: 'block',
     allowTransparency: true, scrollback: isMobile ? 2000 : 8000,
     macOptionIsMeta: true,
@@ -1933,6 +1938,7 @@ async function startMic() {
   if (!recognizer || micOn) return;
   micOn = true; // drawWaveのif(!micOn)チェックより先にセット
   btnMic.classList.add('mic-on');
+  document.getElementById('mob-mic-btn')?.classList.add('mic-on');
   sbVoice.textContent = '● REC';
   voiceBadge.classList.add('show');
   // Web Audio で波形取得
@@ -1974,6 +1980,7 @@ function stopMic() {
   micOn = false;
   if (recognizer) { try { recognizer.stop(); } catch {} }
   btnMic.classList.remove('mic-on');
+  document.getElementById('mob-mic-btn')?.classList.remove('mic-on');
   sbVoice.textContent = '';
   stopWave();
   hideBadge();
@@ -2042,6 +2049,15 @@ function setConn(on) {
 document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
   el.addEventListener('touchstart', e => { if (!el.dataset.k) return; e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
 });
+
+// モバイルマイクボタン
+(function(){
+  const mobMic = document.getElementById('mob-mic-btn');
+  if (!mobMic) return;
+  const toggle = (e) => { e.preventDefault(); micOn ? stopMic() : startMic(); };
+  mobMic.addEventListener('touchstart', toggle, { passive:false });
+  mobMic.addEventListener('click', toggle);
+})();
 
 // ── モバイル写真アップロード ──
 async function _mobUploadFiles(files) {
