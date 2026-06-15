@@ -1611,10 +1611,8 @@ function onMsg(msg) {
       if (!msg.projects) break;
       _todosData = msg.projects;
       if (msg.paths) _projectPaths = msg.paths;
-      // 再接続時に _activeProject が未設定なら localStorage から復元（auth より先に届く場合の対策）
-      if (!_activeProject) _activeProject = localStorage.getItem('noa_last_project');
+      // localStorage からの自動復元は行わない（ユーザーが明示的にタブを選ぶ）
       _cctUpdateTabs();
-      // アクティブプロジェクトのタスクリストを即描画
       if (_activeProject) _cctRender(_activeProject);
       setTimeout(_updateTermTop, 230);
       break;
@@ -3156,11 +3154,14 @@ function _cctUpdateTabs() {
     relBtn.addEventListener('click', () => {
       _activeProject = null;
       localStorage.removeItem('noa_last_project');
+      // URL から ?s= を除去
+      const u = new URL(location.href);
+      u.searchParams.delete('s');
+      u.searchParams.delete('session');
+      history.replaceState(null, '', u.toString());
       _cctUpdateTabs();
       _cctRender(null);
-      // 新規フレッシュセッションに切り替え
       send({ type:'new', cols:term.cols, rows:term.rows });
-      // ファイルツリーをルートに戻す
       _doLoadFileTree();
     });
     tabsEl.appendChild(relBtn);
