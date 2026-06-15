@@ -3051,6 +3051,33 @@ function _saveCustomTabs() {
 
 function _isCustomTab(name) { return _customTabs.includes(name); }
 
+// iOS Safari で window.confirm() が動かないため独自モーダルを使う
+function _noaConfirm(msg, onOk) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1.1rem 1.2rem;max-width:260px;width:90%;font-family:"Space Mono",monospace;font-size:.63rem;color:var(--ink);line-height:1.7';
+  const txt = document.createElement('div');
+  txt.style.marginBottom = '.75rem';
+  txt.textContent = msg;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:.5rem;justify-content:flex-end';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'キャンセル';
+  cancel.style.cssText = 'padding:3px 10px;font-size:.6rem;font-family:"Space Mono",monospace;background:none;border:1px solid var(--line2);border-radius:2px;color:var(--dim);cursor:pointer';
+  const ok = document.createElement('button');
+  ok.textContent = '削除';
+  ok.style.cssText = 'padding:3px 10px;font-size:.6rem;font-family:"Space Mono",monospace;background:none;border:1px solid var(--warn,#e55);border-radius:2px;color:var(--warn,#e55);cursor:pointer';
+  row.append(cancel, ok);
+  box.append(txt, row);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  const close = () => { try { document.body.removeChild(overlay); } catch {} };
+  cancel.addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  ok.addEventListener('click', () => { close(); onOk(); });
+}
+
 function _cctUpdateTabs() {
   const tabsEl = document.getElementById('cct-tabs');
   const ccBtn  = document.getElementById('cc-todo-btn');
@@ -3123,16 +3150,17 @@ function _cctUpdateTabs() {
       delBtn.className = 'cct-tab-del';
       delBtn.title = `"${p}" タブを削除`;
       delBtn.textContent = '×';
-      delBtn.addEventListener('click', async e => {
+      delBtn.addEventListener('click', e => {
         e.stopPropagation();
-        if (!confirm(`"${p}" タブとプロジェクトセッションを削除しますか？`)) return;
-        try {
-          const tok = localStorage.getItem(LS.token) || new URLSearchParams(location.search).get('token') || '';
-          await fetch(`/noa-project-delete?token=${encodeURIComponent(tok)}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project: p })
-          });
-        } catch(err) { alert('削除失敗: ' + err.message); }
+        _noaConfirm(`"${p}" プロジェクトを削除しますか？`, async () => {
+          try {
+            const tok = localStorage.getItem(LS.token) || new URLSearchParams(location.search).get('token') || '';
+            await fetch(`/noa-project-delete?token=${encodeURIComponent(tok)}`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ project: p })
+            });
+          } catch(err) { _noaConfirm('削除失敗: ' + err.message, () => {}); }
+        });
       });
       wrap.append(tab, openBtn, delBtn);
       if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, openBtn); }
