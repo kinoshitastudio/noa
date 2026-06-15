@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.11.0/lib/addon-search.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -520,6 +521,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-tab-add:hover{color:var(--accent);border-color:var(--accent)}
 .cct-tab-input{padding:1px 5px;font-size:.6rem;background:var(--bg2);border:1px solid var(--accent);border-radius:2px;color:var(--ink);font-family:'Space Mono',monospace;outline:none;width:80px}
 .cct-tab.custom{border-style:dashed}
+.cct-tab-notify{width:6px;height:6px;border-radius:50%;background:var(--danger,#e04040);flex-shrink:0;align-self:center;animation:notifypulse 1.2s ease-in-out infinite}
+@keyframes notifypulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
 .cct-check{flex-shrink:0;width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;
@@ -892,6 +895,45 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .sp-btn.active{color:var(--accent);border-color:var(--accent);background:var(--accent2)}
 .sp-val{font-size:.72rem;color:var(--ink);min-width:22px;text-align:center}
 
+/* ── terminal search bar ── */
+#term-search{position:absolute;top:28px;right:8px;z-index:20;
+  display:none;align-items:center;gap:4px;
+  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--radius);
+  padding:3px 6px;box-shadow:var(--shadow-sm)}
+#term-search.open{display:flex}
+#term-search-input{background:transparent;border:none;outline:none;
+  color:var(--ink);font-family:'Space Mono',monospace;font-size:.65rem;width:140px}
+#term-search-input::placeholder{color:var(--faint)}
+.tsrch-btn{background:none;border:none;color:var(--dim);font-size:.75rem;
+  cursor:pointer;padding:2px 4px;border-radius:3px}
+.tsrch-btn:hover{color:var(--ink);background:var(--bg3)}
+#term-search-count{font-size:.55rem;color:var(--faint);min-width:28px;text-align:center}
+/* ── command palette ── */
+#cmd-palette-ov{display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(6px)}
+#cmd-palette-ov.open{display:flex;align-items:flex-end;justify-content:center}
+#cmd-palette{width:100%;max-width:480px;max-height:70vh;
+  background:var(--bg2);border-top:1px solid var(--line2);
+  display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+#cmd-palette-header{display:flex;align-items:center;gap:6px;padding:10px 12px 8px;
+  border-bottom:1px solid var(--line)}
+#cmd-palette-input{flex:1;background:var(--bg3);border:1px solid var(--line2);
+  color:var(--ink);font-family:'Space Mono',monospace;font-size:.72rem;
+  padding:5px 8px;border-radius:var(--radius-sm);outline:none}
+#cmd-palette-input::placeholder{color:var(--faint)}
+#cmd-palette-add{background:var(--accent2);border:1px solid var(--accent);
+  color:var(--accent);font-family:'Space Mono',monospace;font-size:.6rem;
+  padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap}
+#cmd-palette-list{overflow-y:auto;flex:1}
+.cp-item{display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-bottom:1px solid var(--line);cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.cp-item:hover,.cp-item:active{background:var(--bg3)}
+.cp-item-label{flex:1;font-size:.68rem;color:var(--ink);font-family:'Space Mono',monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cp-item-del{color:var(--faint);font-size:.7rem;padding:2px 6px;cursor:pointer}
+.cp-item-del:hover{color:var(--danger)}
+#cmd-palette-close{color:var(--dim);font-size:.8rem;cursor:pointer;padding:4px 8px}
 /* ── mobile tab bar & layout ── */
 #mob-tabs{display:none;height:38px;flex-shrink:0;background:var(--bg2);
   border-bottom:1px solid var(--line)}
@@ -1053,6 +1095,14 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <div id="term-to-bottom" title="最下部へ">↓</div>
       <div id="voice-badge"><span id="voice-text"></span><canvas id="voice-wave" width="240" height="44"></canvas><small>Enter で停止/再開 · 無音3秒で自動停止</small></div>
       <div id="drop-overlay">DROP TO SEND @PATH</div>
+      <!-- ターミナル内検索バー -->
+      <div id="term-search">
+        <input id="term-search-input" type="text" placeholder="検索…" autocomplete="off" spellcheck="false">
+        <span id="term-search-count"></span>
+        <button class="tsrch-btn" id="term-search-prev" title="前の結果">↑</button>
+        <button class="tsrch-btn" id="term-search-next" title="次の結果">↓</button>
+        <button class="tsrch-btn" id="term-search-close" title="閉じる">✕</button>
+      </div>
     </div>
 
     <!-- HANDLE: terminal | editor -->
@@ -1193,6 +1243,13 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
         </select>
         <button class="sp-btn" id="sp-claude-launch" style="width:100%">LAUNCH CLAUDE</button>
       </div>
+      <div class="sp-section">
+        <div class="sp-label">AUTO PREVIEW RELOAD</div>
+        <div class="sp-row">
+          <button class="sp-btn" id="sp-auto-reload-btn">OFF</button>
+          <span style="font-size:.55rem;color:var(--dim);letter-spacing:.04em">保存時にプレビュー自動リロード</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1209,8 +1266,12 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   <div id="mobkeys">
     <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="opacity:.85;font-size:1rem;cursor:pointer">📷</label>
     <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;opacity:.85">🎤</div>
-    <div class="mk" id="mob-copy-btn" title="選択テキストをコピー" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">📋</div>
+    <div class="mk" id="mob-copy-btn" title="選択テキストをコピー" style="font-size:.95rem;cursor:pointer;opacity:.85">📋</div>
+    <div class="mk" id="mob-palette-btn" title="コマンドパレット" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">⊞</div>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
+    <div class="mk" data-k="1">1</div>
+    <div class="mk" data-k="2">2</div>
+    <div class="mk" data-k="3">3</div>
     <div class="mk w" data-k="&#x1b;">ESC</div>
     <div class="mk"   data-k="&#x09;">TAB</div>
     <div class="mk w" data-k="&#x03;">^C</div>
@@ -1533,10 +1594,24 @@ function onMsg(msg) {
       if (!msg.projects) break;
       _todosData = msg.projects;
       if (msg.paths) _projectPaths = msg.paths;
+      // 再接続時に _activeProject が未設定なら localStorage から復元（auth より先に届く場合の対策）
+      if (!_activeProject) _activeProject = localStorage.getItem('noa_last_project');
       _cctUpdateTabs();
       // アクティブプロジェクトのタスクリストを即描画
       if (_activeProject) _cctRender(_activeProject);
       setTimeout(_updateTermTop, 230);
+      break;
+    }
+    case 'project-notify': {
+      // Claude が決定を求める通知: プロジェクトタブにバッジ表示
+      const notifProj = msg.project;
+      if (notifProj) {
+        // すでに表示中のプロジェクトなら即クリア
+        if (_activeProject !== notifProj) {
+          _notifications.add(notifProj);
+          _cctUpdateTabs();
+        }
+      }
       break;
     }
     case 'project-deleted': {
@@ -1661,6 +1736,12 @@ function initTerm() {
   });
   fit = new FitCls();
   term.loadAddon(fit);
+  // SearchAddon
+  if (window.SearchAddon?.SearchAddon) {
+    const sa = new window.SearchAddon.SearchAddon();
+    term.loadAddon(sa);
+    window._termSearchAddon = sa;
+  }
   term.open(termEl);
 
   // ── スクロールバー + ボトムボタン ──
@@ -2053,8 +2134,17 @@ function setConn(on) {
 }
 
 // ── MOBILE KEYS ──
+// touchstart は passive にして横スクロールを妨げない。touchend で移動量が小さければタップとしてキー送信
 document.getElementById('mobkeys').querySelectorAll('.mk').forEach(el => {
-  el.addEventListener('touchstart', e => { if (!el.dataset.k) return; e.preventDefault(); send({ type:'input', data:el.dataset.k }); }, { passive:false });
+  let _mkStartX = 0;
+  el.addEventListener('touchstart', e => { _mkStartX = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!el.dataset.k) return;
+    if (Math.abs(e.changedTouches[0].clientX - _mkStartX) < 12) {
+      e.preventDefault(); // 合成 click を防ぐ
+      send({ type: 'input', data: el.dataset.k });
+    }
+  }, { passive: false });
 });
 
 // モバイルマイクボタン
@@ -2673,7 +2763,14 @@ async function saveCurrentFile() {
       body: JSON.stringify({ path: _currentFilePath, content: monacoEditor.getValue() }),
     });
     const d = await r.json();
-    if (d.ok) { _currentFileSaved = true; updateSaveBtn(true); }
+    if (d.ok) {
+      _currentFileSaved = true; updateSaveBtn(true);
+      if (localStorage.getItem('noa_auto_reload') === '1') {
+        const _pu = document.getElementById('preview-url');
+        const _pf = document.getElementById('preview-iframe');
+        if (_pu?.value.trim() && _pf && _pf.src !== 'about:blank') loadPreview();
+      }
+    }
   } catch(e) { console.error('[editor] write error', e); }
 }
 
@@ -2911,6 +3008,7 @@ function _saveManualTodos(project, todos) {
   try { localStorage.setItem('noa_manual_' + project, JSON.stringify(manuals)); } catch {}
 }
 let _activeProject = null;
+const _notifications = new Set(); // 未読通知があるプロジェクト名
 // カスタムタブ（ユーザーが自由に追加したタブ）
 let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
 // カスタムタブのタスクデータ（localStorageに保存）
@@ -2952,6 +3050,7 @@ function _cctUpdateTabs() {
     tab.textContent = p + (inProg ? ' ▶' : '');
     tab.addEventListener('click', () => {
       _activeProject = p;
+      _notifications.delete(p); // タブ選択で通知クリア
       _cctUpdateTabs();
       _cctRender(p);
       // プロジェクトタブなら同一ウィンドウ内でターミナルセッションを切り替え
@@ -2973,6 +3072,7 @@ function _cctUpdateTabs() {
         _cctUpdateTabs();
       });
       wrap.append(tab, delBtn);
+      if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, delBtn); }
     } else {
       // プロジェクトタブ: ↗ 新規ウィンドウ + × 削除
       const openBtn = document.createElement('button');
@@ -3000,6 +3100,7 @@ function _cctUpdateTabs() {
         } catch(err) { alert('削除失敗: ' + err.message); }
       });
       wrap.append(tab, openBtn, delBtn);
+      if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, openBtn); }
     }
     tabsEl.appendChild(wrap);
   });
@@ -3050,6 +3151,8 @@ function _switchToProjectSession(projName) {
   const labelEl = document.getElementById('sess-label');
   if (labelEl) labelEl.textContent = projName;
   document.title = `Noa — ${projName}`;
+  // スクロールバック受信後に最下部へ（WS 1往復 + xterm.js 描画待ち）
+  setTimeout(() => { if (term) term.scrollToBottom(); }, 400);
 }
 
 function _cctRender(project) {
@@ -3473,10 +3576,43 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     if (tab) switchPane(tab.dataset.pane);
   });
   switchPane('term');
+
+  // ── A: 横スワイプでペイン切り替え ──
+  const paneOrder = ['term', 'editor', 'files'];
+  let _swipeX = 0, _swipeY = 0;
+  const ws = document.getElementById('workspace');
+  if (ws) {
+    ws.addEventListener('touchstart', e => {
+      _swipeX = e.touches[0].clientX;
+      _swipeY = e.touches[0].clientY;
+    }, { passive: true });
+    ws.addEventListener('touchend', e => {
+      if (window.innerWidth > 720) return;
+      const dx = e.changedTouches[0].clientX - _swipeX;
+      const dy = e.changedTouches[0].clientY - _swipeY;
+      if (Math.abs(dx) < 52 || Math.abs(dy) > Math.abs(dx) * 0.75) return;
+      const cur = document.querySelector('.mob-tab.active')?.dataset?.pane || 'term';
+      const idx = paneOrder.indexOf(cur);
+      if (dx < 0 && idx < paneOrder.length - 1) switchPane(paneOrder[idx + 1]);
+      if (dx > 0 && idx > 0) switchPane(paneOrder[idx - 1]);
+    }, { passive: true });
+  }
 })();
 </script>
 
 <div id="noa-toast"></div>
+
+<!-- コマンドパレット -->
+<div id="cmd-palette-ov">
+  <div id="cmd-palette">
+    <div id="cmd-palette-header">
+      <input id="cmd-palette-input" type="text" placeholder="コマンドを入力して追加…" autocomplete="off" spellcheck="false">
+      <button id="cmd-palette-add">+ 追加</button>
+      <span id="cmd-palette-close">✕</span>
+    </div>
+    <div id="cmd-palette-list"></div>
+  </div>
+</div>
 
 <!-- ファイルツリー右クリックメニュー -->
 <div id="ft-ctx">
@@ -3600,6 +3736,146 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
       }
     } catch(e) { alert('エラー: ' + e.message); _undoStack.push(op); }
   });
+})();
+</script>
+
+<!-- B: 自動プレビューリロード設定トグル -->
+<script>
+(function() {
+  const btn = document.getElementById('sp-auto-reload-btn');
+  if (!btn) return;
+  const update = () => {
+    const on = localStorage.getItem('noa_auto_reload') === '1';
+    btn.textContent = on ? 'ON' : 'OFF';
+    btn.classList.toggle('active', on);
+  };
+  update();
+  btn.addEventListener('click', () => {
+    const on = localStorage.getItem('noa_auto_reload') === '1';
+    localStorage.setItem('noa_auto_reload', on ? '0' : '1');
+    update();
+  });
+})();
+</script>
+
+<!-- C: ターミナル内テキスト検索 -->
+<script>
+(function() {
+  const bar    = document.getElementById('term-search');
+  const input  = document.getElementById('term-search-input');
+  const count  = document.getElementById('term-search-count');
+  const btnPrev = document.getElementById('term-search-prev');
+  const btnNext = document.getElementById('term-search-next');
+  const btnClose = document.getElementById('term-search-close');
+  if (!bar || !input) return;
+
+  function getAddon() { return window._termSearchAddon || null; }
+
+  function doSearch(prev) {
+    const sa = getAddon();
+    if (!sa || !input.value) { count.textContent = ''; return; }
+    const opts = { caseSensitive: false, regex: false, wholeWord: false };
+    const found = prev ? sa.findPrevious(input.value, opts) : sa.findNext(input.value, opts);
+    count.textContent = found ? '' : '×';
+  }
+
+  function openSearch() {
+    bar.classList.add('open');
+    input.focus();
+    input.select();
+  }
+  function closeSearch() {
+    bar.classList.remove('open');
+    count.textContent = '';
+    const sa = getAddon();
+    if (sa) sa.clearDecorations && sa.clearDecorations();
+  }
+
+  input.addEventListener('input', () => doSearch(false));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(e.shiftKey); }
+    if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+  });
+  btnPrev.addEventListener('click', () => doSearch(true));
+  btnNext.addEventListener('click', () => doSearch(false));
+  btnClose.addEventListener('click', closeSearch);
+
+  // Ctrl+F / Cmd+F でターミナルペインがアクティブな時に開く
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      const termWrap = document.getElementById('term-wrap');
+      if (!termWrap || termWrap.style.display === 'none' ||
+          (!termWrap.classList.contains('mob-active') && window.innerWidth <= 720)) return;
+      e.preventDefault();
+      openSearch();
+    }
+  });
+
+  window._openTermSearch = openSearch;
+})();
+</script>
+
+<!-- D: コマンドパレット -->
+<script>
+(function() {
+  const ov      = document.getElementById('cmd-palette-ov');
+  const input   = document.getElementById('cmd-palette-input');
+  const addBtn  = document.getElementById('cmd-palette-add');
+  const list    = document.getElementById('cmd-palette-list');
+  const closeEl = document.getElementById('cmd-palette-close');
+  const mobBtn  = document.getElementById('mob-palette-btn');
+  if (!ov || !input) return;
+
+  const LS_KEY = 'noa_palette_cmds';
+  function loadCmds() { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } }
+  function saveCmds(cmds) { localStorage.setItem(LS_KEY, JSON.stringify(cmds)); }
+
+  function renderList() {
+    const cmds = loadCmds();
+    list.innerHTML = '';
+    if (!cmds.length) {
+      list.innerHTML = '<div style="padding:16px 12px;font-size:.6rem;color:var(--faint);letter-spacing:.06em">コマンドを追加してタップで送信</div>';
+      return;
+    }
+    cmds.forEach((cmd, i) => {
+      const item = document.createElement('div');
+      item.className = 'cp-item';
+      item.innerHTML = `<span class="cp-item-label">${cmd.replace(/</g,'&lt;')}</span><span class="cp-item-del" data-i="${i}">✕</span>`;
+      item.querySelector('.cp-item-label').addEventListener('click', () => {
+        if (typeof send === 'function') send({ type: 'input', data: cmd + '\n' });
+        closeOv();
+      });
+      item.querySelector('.cp-item-del').addEventListener('click', e => {
+        e.stopPropagation();
+        const cmds2 = loadCmds(); cmds2.splice(i, 1); saveCmds(cmds2); renderList();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  function openOv() { ov.classList.add('open'); input.focus(); renderList(); }
+  function closeOv() { ov.classList.remove('open'); input.value = ''; }
+
+  function addCmd() {
+    const v = input.value.trim();
+    if (!v) return;
+    const cmds = loadCmds();
+    if (!cmds.includes(v)) { cmds.push(v); saveCmds(cmds); }
+    input.value = '';
+    renderList();
+  }
+
+  addBtn.addEventListener('click', addCmd);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCmd(); } });
+  closeEl.addEventListener('click', closeOv);
+  ov.addEventListener('click', e => { if (e.target === ov) closeOv(); });
+
+  if (mobBtn) {
+    mobBtn.addEventListener('touchstart', e => { e.preventDefault(); openOv(); }, { passive: false });
+    mobBtn.addEventListener('click', openOv);
+  }
+
+  window._openCmdPalette = openOv;
 })();
 </script>
 </body>
