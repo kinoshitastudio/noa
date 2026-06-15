@@ -1599,11 +1599,8 @@ function onMsg(msg) {
       const savedManuals = _loadManualTodos(proj);
       const merged = [...msg.todos, ...savedManuals.filter(m => !msg.todos.some(t => t.content === m.content))];
       _todosData[proj] = merged;
-      _cctUpdateTabs();
-      if (!_activeProject || _activeProject === proj) {
-        _activeProject = proj;
-        _cctRender(_activeProject);
-      }
+      _cctUpdateTabs(); // 内部で _cctRender(_activeProject) を呼ぶ
+      // 自動選択はしない。アクティブが一致する場合は _cctUpdateTabs 内で再描画済み
       setTimeout(_updateTermTop, 230);
       break;
     }
@@ -1634,7 +1631,7 @@ function onMsg(msg) {
       if (proj && _todosData[proj] !== undefined) {
         delete _todosData[proj];
         delete _projectPaths[proj];
-        if (_activeProject === proj) _activeProject = Object.keys(_todosData)[0] || null;
+        if (_activeProject === proj) _activeProject = null; // 自動選択しない
         _cctUpdateTabs();
         if (_activeProject) _cctRender(_activeProject);
       }
@@ -3229,6 +3226,14 @@ function _cctRender(project) {
   const todos = isCustom ? (_customTodosData[project] || []) : (_todosData[project] || []);
 
   listEl.innerHTML = '';
+
+  // プロジェクト未選択時: タスク追加欄を隠してヒントを出す
+  if (!project) {
+    progressEl.style.display = 'none';
+    addEl.style.display = 'none';
+    listEl.innerHTML = '<div style="padding:.4rem .75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace">← タブを選択してください</div>';
+    return;
+  }
 
   if (todos.length === 0) {
     progressEl.style.display = 'none';
