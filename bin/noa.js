@@ -42,6 +42,15 @@ function openBrowser(url) {
 // ── メイン ───────────────────────────────────────────────────────
 const token = loadOrCreateToken();
 const port  = process.env.NOA_PORT || 2797;
+
+// hook スクリプトが参照できるよう ~/.noa-token に保存
+try {
+  fs.writeFileSync(
+    path.join(require('os').homedir(), '.noa-token'),
+    `NOA_TOKEN=${token}\nNOA_PORT=${port}\n`,
+    'utf8'
+  );
+} catch {}
 const url   = `http://localhost:${port}/?token=${token}`;
 
 // サーバープロセスを起動（このプロセスの子として）
