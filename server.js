@@ -10,6 +10,15 @@ const { execSync } = require('child_process');
 const PORT  = process.env.NOA_PORT  || 2797;
 const TOKEN = process.env.NOA_TOKEN || crypto.randomBytes(8).toString('hex');
 
+// hook スクリプトが参照できるよう ~/.noa-token にトークンを書き出す
+try {
+  require('fs').writeFileSync(
+    require('path').join(os.homedir(), '.noa-token'),
+    `NOA_TOKEN=${TOKEN}\nNOA_PORT=${PORT}\n`,
+    'utf8'
+  );
+} catch {}
+
 // シェルパスを確実に取得（npm経由だとSHELLが未設定のことがある）
 function findShell() {
   const candidates = [
