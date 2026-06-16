@@ -9,7 +9,8 @@
   "scripts": {
     "postinstall": "cd node_modules/node-pty && npx node-gyp rebuild",
     "start": "node bin/noa.js",
-    "dev": "NOA_TOKEN=dev node server.js"
+    "dev": "NOA_TOKEN=dev node server.js",
+    "doctor": "node noa-doctor.js"
   },
   "keywords": ["terminal", "web", "mac", "remote"],
   "author": "kinoshita studio",
