@@ -174,6 +174,17 @@ app.post('/noa-project-delete', express.json({ limit: '4kb' }), (req, res) => {
   res.json({ ok: true, project });
 });
 
+// Claude から決定を求める通知 (AskUserQuestion hook)
+app.post('/noa-notify', express.json({ limit: '4kb' }), (req, res) => {
+  const token = req.query.token || req.headers['x-noa-token'] || '';
+  if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
+  const project = req.body?.project || 'default';
+  const message = req.body?.message || '';
+  const msg = JSON.stringify({ type: 'project-notify', project, message });
+  wss.clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
+  res.json({ ok: true, project });
+});
+
 app.post('/noa-todos', express.json({ limit: '64kb' }), (req, res) => {
   const token = req.query.token || req.headers['x-noa-token'] || '';
   if (token !== TOKEN) return res.status(401).json({ error: 'unauthorized' });
