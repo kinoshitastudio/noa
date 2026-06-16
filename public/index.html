@@ -1525,9 +1525,8 @@ function onMsg(msg) {
         // 通常セッションID (?s=s1 など) → attach
         sessId = attachId;
         send({ type:'attach', id:sessId, cols:term.cols, rows:term.rows });
-      } else {
-        send({ type:'new', cols:term.cols, rows:term.rows });
       }
+      // ?s= なし・プロジェクトなし → ターミナルを空のまま（プロジェクトタブをクリックするまで何も起動しない）
       break;
     case 'attached':
       sessId   = msg.id;
@@ -3183,15 +3182,9 @@ function _cctUpdateTabs() {
     relBtn.addEventListener('click', () => {
       _activeProject = null;
       localStorage.removeItem('noa_last_project');
-      // URL から ?s= を除去
-      const u = new URL(location.href);
-      u.searchParams.delete('s');
-      u.searchParams.delete('session');
-      history.replaceState(null, '', u.toString());
       _cctUpdateTabs();
       _cctRender(null);
-      send({ type:'new', cols:term.cols, rows:term.rows });
-      _doLoadFileTree();
+      _doLoadFileTree(); // ファイルツリーをルートに戻す（セッションは維持）
     });
     tabsEl.appendChild(relBtn);
   }

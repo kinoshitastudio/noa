@@ -19,6 +19,33 @@ try {
   );
 } catch {}
 
+// .zshrc に NOA_TERMINAL ガードがなければ自動追加（tmux 誤起動防止）
+(function _ensureZshrcGuard() {
+  const zshrc = require('path').join(os.homedir(), '.zshrc');
+  try {
+    const content = require('fs').readFileSync(zshrc, 'utf8');
+    if (!content.includes('NOA_TERMINAL')) {
+      const guard = '\n# Noa terminal guard (auto-added by noa server)\n' +
+        '# tmux自動起動をNoaのPTY内ではスキップする\n';
+      // [ -z "$TMUX" ] の条件に && [ -z "$NOA_TERMINAL" ] を追加
+      const fixed = content.replace(
+        /if \[ -z "\$TMUX" \]/g,
+        'if [ -z "$TMUX" ] && [ -z "$NOA_TERMINAL" ]'
+      );
+      if (fixed !== content) {
+        require('fs').writeFileSync(zshrc, fixed, 'utf8');
+        console.log('[noa] .zshrc に NOA_TERMINAL ガードを自動追加しました');
+      } else {
+        // パターンが見つからない場合は末尾に追加
+        require('fs').appendFileSync(zshrc,
+          guard + 'if [ -z "$TMUX" ] && [ -z "$NOA_TERMINAL" ]; then\n  tmux attach 2>/dev/null || true\nfi\n'
+        );
+        console.log('[noa] .zshrc 末尾に NOA_TERMINAL ガードを追加しました');
+      }
+    }
+  } catch {}
+}());
+
 // シェルパスを確実に取得（npm経由だとSHELLが未設定のことがある）
 function findShell() {
   const candidates = [
@@ -281,6 +308,7 @@ function createSession(id, cols = 120, rows = 36, name = '', cwd = '') {
       SHELL,
       HOME: os.homedir(),
       USER: os.userInfo().username,
+      NOA_TERMINAL: '1', // .zshrc の tmux 自動起動をスキップ
     },
   });
 
@@ -435,9 +463,13 @@ wss.on('connection', ws => {
             if (!sessions.has(sessId)) return;
             const s = sessions.get(sessId);
             // 明示的に cd して正しいディレクトリに移動してから claude 起動
+            // --no-session-persistence で前回セッション(noa等)の引き継ぎを防ぐ
             if (projPath) {
               s.pty.write(`cd "${projPath}"\n`);
-              setTimeout(() => { if (sessions.has(sessId)) sessions.get(sessId).pty.write(`claude\n`); }, 400);
+              setTimeout(() => {
+                if (!sessions.has(sessId)) return;
+                sessions.get(sessId).pty.write(`claude\n`);
+              }, 400);
             } else {
               s.pty.write(`claude\n`);
             }
