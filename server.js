@@ -641,9 +641,12 @@ wss.on('connection', ws => {
         try {
           const histPath = os.homedir() + '/.claude/history.jsonl';
           const raw = fs.readFileSync(histPath, 'utf8');
+          // アクティブプロジェクトが指定されていればそのパスでフィルタ
+          const filterProj = msg.project ? (msg.project + '') : null;
+          const filterPath = filterProj ? (_projectPaths[filterProj] || null) : null;
           const entries = raw.trim().split('\n')
             .filter(l => l.trim())
-            .slice(-300)
+            .slice(-500)
             .reverse()
             .map(l => {
               try {
@@ -651,12 +654,18 @@ wss.on('connection', ws => {
                 return {
                   display: d.display || '',
                   timestamp: d.timestamp || 0,
+                  projPath: d.project || '',
                   project: (d.project || '').split('/').pop()
                 };
               } catch { return null; }
             })
             .filter(Boolean)
             .filter(d => d.display && !d.display.startsWith('['))
+            .filter(d => {
+              if (!filterPath) return true; // フィルタなし → 全件
+              return d.projPath === filterPath || d.projPath.startsWith(filterPath + '/');
+            })
+            .map(({ projPath, ...rest }) => rest) // projPath は送らない
             .slice(0, 50);
           ws.send(JSON.stringify({ type: 'cc-history', entries }));
         } catch(e) {

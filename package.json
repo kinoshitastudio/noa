@@ -8,7 +8,7 @@
   },
   "scripts": {
     "postinstall": "cd node_modules/node-pty && npx node-gyp rebuild",
-    "start": "node bin/noa.js",
+    "start": "NOA_TOKEN=noa2797 NOA_NO_OPEN=1 node server.js",
     "dev": "NOA_TOKEN=dev node server.js",
     "doctor": "node noa-doctor.js"
   },

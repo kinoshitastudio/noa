@@ -1566,6 +1566,8 @@ function onMsg(msg) {
       break;
     case 'file-active':
       // Claude Code が編集中のファイルをツリーでハイライト（点滅 → 完了チェック）
+      // 解除後（_activeProject なし）は無視してハイライト・スクロールしない
+      if (!_activeProject) break;
       { const row = document.querySelector(`.ft-item[data-path="${msg.path}"]`);
         if (row) {
           // active ハイライト
@@ -3182,6 +3184,7 @@ function _cctUpdateTabs() {
     relBtn.addEventListener('click', () => {
       _activeProject = null;
       localStorage.removeItem('noa_last_project');
+      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
       _cctUpdateTabs();
       _cctRender(null);
       _doLoadFileTree(); // ファイルツリーをルートに戻す（セッションは維持）
@@ -3545,7 +3548,7 @@ document.getElementById('cc-hist-btn').addEventListener('click', () => {
     _cchOpen = true;
     ccHistoryEl.classList.add('open');
     document.getElementById('cc-hist-btn').style.color = 'var(--accent)';
-    send({ type: 'cc-history' });
+    send({ type: 'cc-history', project: _activeProject || null });
   }
   setTimeout(_updateTermTop, 280);
 });
