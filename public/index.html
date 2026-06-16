@@ -3278,6 +3278,18 @@ function _cctRender(project) {
   progressEl.style.display = '';
   addEl.style.display  = '';
 
+  // 全タスク完了 → 完了メッセージを表示して2秒後に消す
+  if (done === todos.length && todos.length > 0) {
+    listEl.innerHTML = '<div style="padding:.4rem .75rem;font-size:.62rem;color:var(--ok);font-family:\'Space Mono\',monospace">✓ 全タスク完了</div>';
+    setTimeout(() => {
+      const isCustom2 = _isCustomTab(project);
+      if (isCustom2) _customTodosData[project] = [];
+      else _todosData[project] = [];
+      _cctRender(project);
+    }, 2000);
+    return;
+  }
+
   // in_progress → pending → completed の順で表示
   const sorted = [
     ...todos.filter(t => t.status === 'in_progress'),
