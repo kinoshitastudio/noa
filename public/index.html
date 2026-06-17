@@ -22,13 +22,12 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  /* macOS dark system colors */
-  --bg:#1c1c1e; --bg2:#2c2c2e; --bg3:#3a3a3c;
-  --bg-glass:rgba(28,28,30,0.75);
-  --line:rgba(255,255,255,0.08); --line2:rgba(255,255,255,0.14);
-  --ink:#f2f2f7; --dim:rgba(242,242,247,0.55); --faint:rgba(242,242,247,0.25);
-  --accent:#e8e020; --accent2:rgba(232,224,32,0.12);
-  --danger:#ff453a; --ok:#30d158;
+  --bg:#0e0e10; --bg2:#18181b; --bg3:#26262a;
+  --bg-glass:rgba(14,14,16,0.88);
+  --line:rgba(255,255,255,0.10); --line2:rgba(255,255,255,0.18);
+  --ink:#ececf0; --dim:rgba(236,236,240,0.72); --faint:rgba(236,236,240,0.42);
+  --accent:#e8e020; --accent2:rgba(232,224,32,0.14);
+  --danger:#ff5449; --ok:#3dd68c;
   --h:44px;
   --radius:8px; --radius-sm:5px;
   --blur:blur(20px) saturate(180%);
@@ -468,8 +467,13 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 #workspace{flex:1;display:flex;overflow:hidden}
 
 /* ── terminal (LEFT column) ── */
-#term-wrap{width:280px;flex-shrink:0;overflow:hidden;position:relative;
-  border-right:1px solid var(--line);overscroll-behavior:none}
+#term-wrap{width:500px;flex-shrink:0;overflow:hidden;position:relative;
+  border-right:1px solid var(--line);overscroll-behavior:none;touch-action:pan-y}
+/* モバイル: 入力フォーカス中はターミナル枠を光らせて「ここが入力欄」と分かるように */
+@media (pointer:coarse){
+  #term-wrap{transition:box-shadow .18s ease}
+  #term-wrap.term-focused{box-shadow:inset 0 0 0 2px var(--accent),inset 0 0 16px var(--accent2)}
+}
 #term-wrap.p-col{width:0!important;border:none!important;min-width:0;overflow:hidden}
 /* #term-el inset is overridden in panel collapse section (28px top for header) */
 /* ── ターミナル スクロールバー + ボトムボタン ── */
@@ -484,10 +488,13 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   font-size:.8rem;letter-spacing:.12em;color:var(--accent)}
 #drop-overlay.active{display:flex}
 .xterm,.xterm-viewport,.xterm-screen{height:100%!important}
+.xterm-viewport{will-change:scroll-position;-webkit-overflow-scrolling:touch}
+.xterm-screen canvas{will-change:transform}
 
 /* ── Claude Code history panel ── */
 #cc-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
-  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+  position:absolute;top:28px;left:0;right:0;z-index:5;
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #cc-history.open{max-height:320px}
 .cch-item{display:flex;align-items:flex-start;gap:8px;padding:.38rem .75rem;
@@ -498,7 +505,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 
 /* ── Claude Code todo panel ── */
 #cc-todos{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
-  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+  position:absolute;top:28px;left:0;right:0;z-index:5;
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #cc-todos.open{max-height:240px}
 .cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0;align-items:center}
@@ -527,6 +535,20 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-tab-input{padding:1px 5px;font-size:.6rem;background:var(--bg2);border:1px solid var(--accent);border-radius:2px;color:var(--ink);font-family:'Space Mono',monospace;outline:none;width:80px}
 .cct-tab.custom{border-style:dashed}
 .cct-tab-notify{width:6px;height:6px;border-radius:50%;background:var(--danger,#e04040);flex-shrink:0;align-self:center;animation:notifypulse 1.2s ease-in-out infinite}
+/* ── セッション健全性インジケーター ── */
+.cct-health{width:6px;height:6px;border-radius:50%;flex-shrink:0;align-self:center;margin:0 1px;transition:background .4s}
+.cct-health.ok{background:#4caf50}
+.cct-health.warn{background:var(--danger,#e04040);animation:notifypulse 1.2s infinite}
+.cct-health.unknown{background:var(--faint)}
+.cct-tab-restart{padding:2px 4px;font-size:.7rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.6;transition:opacity .2s,color .2s,transform .4s}
+.cct-tab-restart:hover{opacity:1;color:#4caf50;transform:rotate(180deg)}
+.cct-pid{font-size:.46rem;color:var(--faint);font-family:'Space Mono',monospace;line-height:1;padding:0 1px;user-select:none;white-space:nowrap;letter-spacing:0}
+/* ── セッション障害アラート ── */
+#session-alert{position:fixed;top:0;left:0;right:0;z-index:9998;background:#c0392b;color:#fff;
+  font-family:'Space Mono',monospace;font-size:.65rem;padding:.4rem .8rem;
+  display:none;align-items:center;gap:.5rem;line-height:1.4}
+#session-alert.show{display:flex}
+#session-alert-close{margin-left:auto;cursor:pointer;opacity:.8;font-size:.85rem;flex-shrink:0}
 @keyframes notifypulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
 .cct-item{display:flex;align-items:flex-start;gap:8px;padding:.4rem .75rem;
   border-bottom:1px solid var(--line);font-size:.62rem;line-height:1.45}
@@ -558,8 +580,9 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 
 /* ── task history panel ── */
 #task-history{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
+  position:absolute;top:28px;left:0;right:0;z-index:5;
   max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
-  scrollbar-width:thin;scrollbar-color:var(--line2) transparent;flex-shrink:0}
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #task-history.open{max-height:200px}
 #task-history::-webkit-scrollbar{width:3px}
 #task-history::-webkit-scrollbar-thumb{background:var(--line2)}
@@ -666,7 +689,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 /* ── mobile key bar ── */
 #mobkeys{display:none;height:42px;flex-shrink:0;border-top:1px solid var(--line);
   background:var(--bg2);align-items:center;overflow-x:auto;gap:1px;
-  scrollbar-width:none;padding:0 2px}
+  scrollbar-width:none;padding:0 2px;touch-action:pan-x;overscroll-behavior-x:contain}
 #mobkeys::-webkit-scrollbar{display:none}
 @media(pointer:coarse){#mobkeys{display:flex}}
 .mk{height:34px;min-width:38px;padding:0 .55rem;flex-shrink:0;
@@ -852,7 +875,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 /* ── collapsible panel strips ── */
 .p-colbtn{flex-shrink:0;cursor:pointer;color:var(--faint);font-size:.62rem;
   width:22px;height:22px;display:flex;align-items:center;justify-content:center;
-  border-radius:2px;transition:color .1s,background .1s;user-select:none;z-index:20}
+  border-radius:2px;transition:color .1s,background .1s;user-select:none;z-index:20;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .p-colbtn:hover{color:var(--ink);background:var(--bg3)}
 /* vertical collapsed strip */
 .p-bar{flex-shrink:0;width:22px;
@@ -868,15 +892,15 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .p-header{height:28px;flex-shrink:0;
   background:var(--bg-glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border-bottom:1px solid var(--line);
-  display:flex;align-items:center;padding:0 8px;gap:5px;position:sticky;top:0;z-index:5}
+  display:flex;align-items:center;padding:0 8px;gap:5px;position:sticky;top:0;z-index:5;
+  touch-action:none}
 .p-header .ph-label{font-size:.5rem;letter-spacing:.2em;color:var(--faint);
   text-transform:uppercase;font-weight:700}
 /* terminal: canvas start position is set dynamically by JS (_updateTermTop) */
 #term-el{position:absolute;inset:28px 4px 4px 4px;
-  /* GPU合成レイヤーに昇格: モバイルでのスクロールジャンクを軽減 */
   will-change:transform;-webkit-transform:translateZ(0);transform:translateZ(0);
-  /* iOS ラバーバンド無効: ターミナル端でページが揺れない */
-  overscroll-behavior:none;-webkit-overflow-scrolling:auto}
+  overscroll-behavior:none;-webkit-overflow-scrolling:auto;
+  touch-action:pan-y}
 /* inline preview strip uses same .p-bar style; hidden class controls visibility */
 #eip-col-bar.hidden{display:none!important}
 /* Monaco editor collapse */
@@ -1367,6 +1391,17 @@ const paramTok    = params.get('token');
 const paramSession = params.get('session'); // ?session=BMBoard でセッション名を指定
 
 let fontSize = parseInt(localStorage.getItem(LS.fontSize) || '14');
+// ターミナル列幅をlocalStorageから復元（PC限定）
+(function() {
+  const saved = localStorage.getItem(LS.panelWidth);
+  if (saved && !window.matchMedia('(pointer:coarse)').matches) {
+    const w = Math.max(200, Math.min(800, parseInt(saved)));
+    if (!isNaN(w)) {
+      const tw = document.getElementById('term-wrap');
+      if (tw) tw.style.width = w + 'px';
+    }
+  }
+}());
 
 // ── STATE ──
 let ws = null, authed = false, sessId = null, sessName = '—';
@@ -1513,9 +1548,13 @@ function onMsg(msg) {
       setTimeout(() => _doLoadFileTree(), 300);
       // プロジェクトセッション復元: proj: 系は全て project-session で統一
       // (attach と project-session で挙動差があり、attach は _currentSessId を設定しないため不整合が起きていた)
-      const _restoreProj = paramSession
-        || (attachId && attachId.startsWith('proj:') ? attachId.replace(/^proj:/, '') : null);
-        // localStorage の最終プロジェクトは自動復元しない（ユーザーが明示的に選ぶ）
+      const _restoreProj = _activeProject   // 再接続時: いま開いているプロジェクトを最優先（リロードでない限りメモリに生きている）。
+                                            //   これがないと古い ?s= に戻り、PC/モバイルで別セッションを見てズレる。
+        || paramSession
+        || (attachId && attachId.startsWith('proj:') ? attachId.replace(/^proj:/, '') : null)
+        // アプリ切替→復帰（iOSのページ破棄）やリロードで最後のプロジェクトに自動復帰させる。
+        // 「解除」ボタンを押すと noa_last_project は消えるので、明示的に外した場合は復元しない。
+        || localStorage.getItem('noa_last_project');
 
       if (_restoreProj) {
         window._currentSessId = `proj:${_restoreProj}`;
@@ -1594,8 +1633,8 @@ function onMsg(msg) {
       } else {
         sbGit.style.display = 'none';
       }
-      // cwdをファイルツリーでハイライト
-      if (msg.cwd && _ftFileRoot) _ftHighlightCwd(msg.cwd);
+      // cwdをファイルツリーでハイライト（プロジェクト選択中のみ）
+      if (msg.cwd && _ftFileRoot && _activeProject) _ftHighlightCwd(msg.cwd);
       break;
     case 'todos-update': {
       if (!Array.isArray(msg.todos)) break;
@@ -1684,6 +1723,30 @@ function onMsg(msg) {
       setTimeout(_updateTermTop, 280);
       break;
     }
+    case 'session-health': {
+      // ウォッチドッグからのセッション健全性レポート
+      _sessionHealth.clear();
+      let hasWarn = false;
+      (msg.sessions || []).forEach(s => {
+        _sessionHealth.set(s.projName, s);
+        if (!s.ok) hasWarn = true;
+      });
+      // プロジェクトタブに反映
+      _cctUpdateTabs();
+      // 問題があればアラートバナーを表示
+      if (hasWarn) {
+        const errors = (msg.sessions || []).filter(s => !s.ok).map(s => s.error).join(' / ');
+        const el = document.getElementById('session-alert-msg');
+        if (el) el.textContent = '⚠ セッション異常: ' + errors;
+        document.getElementById('session-alert')?.classList.add('show');
+      }
+      break;
+    }
+    case 'proj-restarted': {
+      const t = document.getElementById('noa-toast');
+      if (t) { t.textContent = `↺ ${msg.name} を再起動しました (PID: ${msg.pid})`; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+      break;
+    }
   }
 }
 
@@ -1745,9 +1808,9 @@ function initTerm() {
     cursorBlink: true, cursorStyle: 'block',
     allowTransparency: true,
     scrollback: isMobile ? 2000 : 8000,
-    // モバイルでスクロールを軽くする: タッチ1回で多めにスクロール → 少ないフレーム数で到達
-    scrollSensitivity: isMobile ? 3 : 1,
-    fastScrollSensitivity: isMobile ? 8 : 5,
+    smoothScrollDuration: 0,
+    scrollSensitivity: isMobile ? 2 : 1,
+    fastScrollSensitivity: isMobile ? 6 : 5,
     macOptionIsMeta: true,
     copyOnSelect: true,
   });
@@ -1761,13 +1824,17 @@ function initTerm() {
   }
   term.open(termEl);
 
+  // ホイールスクロールは xterm.js ネイティブに任せる
+  // （標準ハンドラが scrollSensitivity / 慣性スクロールを正しく処理する）
+
   // ── スクロールバー + ボトムボタン ──
   (function(){
     const thumb   = document.getElementById('term-scrollbar-thumb');
     const toBot   = document.getElementById('term-to-bottom');
     const sbWrap  = document.getElementById('term-wrap');
-    let sbTimer;
-    function updateSb() {
+    let sbTimer, sbRaf;
+    function _doUpdateSb() {
+      sbRaf = null;
       const buf    = term.buffer.active;
       const total  = buf.length;
       const viewH  = term.rows;
@@ -1783,8 +1850,10 @@ function initTerm() {
       sbWrap.classList.add('sb-active');
       clearTimeout(sbTimer);
       sbTimer = setTimeout(() => sbWrap.classList.remove('sb-active'), 1200);
-      const atBottom = scrollTop >= maxScroll - 2;
-      toBot.classList.toggle('visible', !atBottom);
+      toBot.classList.toggle('visible', scrollTop < maxScroll - 2);
+    }
+    function updateSb() {
+      if (!sbRaf) sbRaf = requestAnimationFrame(_doUpdateSb);
     }
     term.onScroll(updateSb);
     term.onLineFeed(updateSb);
@@ -1897,7 +1966,18 @@ function initTerm() {
     if (dx < 8 && dy < 8) term.focus();
   }, { passive: true });
 
+  // ターミナルにフォーカスが当たっている＝入力中、を枠グローで可視化（CSSはpointer:coarse限定）
+  (function(){
+    const wrap = document.getElementById('term-wrap');
+    const ta   = termEl.querySelector('.xterm-helper-textarea');
+    if (!wrap || !ta) return;
+    ta.addEventListener('focus', () => wrap.classList.add('term-focused'));
+    ta.addEventListener('blur',  () => wrap.classList.remove('term-focused'));
+    if (document.activeElement === ta) wrap.classList.add('term-focused');
+  })();
+
   new ResizeObserver(() => {
+    if (window._termResizeLocked) return;
     requestAnimationFrame(() => { try { fit.fit(); sendResize(); } catch {} });
   }).observe(termEl);
 
@@ -2037,6 +2117,20 @@ if (SR) {
 } else {
   btnMic.style.opacity = '.3';
   btnMic.title = 'このブラウザは音声入力未対応';
+  const mobMicUnsupported = document.getElementById('mob-mic-btn');
+  if (mobMicUnsupported) {
+    mobMicUnsupported.style.opacity = '.3';
+    mobMicUnsupported.title = '音声入力未対応';
+    const _showMicToast = () => {
+      const t = document.getElementById('noa-toast');
+      if (!t) return;
+      t.textContent = '音声入力はHTTPS環境が必要です';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    };
+    mobMicUnsupported.addEventListener('touchend', e => { e.preventDefault(); _showMicToast(); }, { passive: false });
+    mobMicUnsupported.addEventListener('click', _showMicToast);
+  }
 }
 
 async function startMic() {
@@ -2077,8 +2171,17 @@ async function startMic() {
     voiceTextEl.style.whiteSpace = 'pre-line';
     voiceTextEl.style.fontSize = '.62rem';
     voiceTextEl.style.lineHeight = '1.5';
+    // モバイル向けにトーストでも表示
+    const _t = document.getElementById('noa-toast');
+    if (_t) { _t.textContent = msg.split('\n')[0]; _t.classList.add('show'); setTimeout(() => _t.classList.remove('show'), 3500); }
+    stopMic();
+    return;
   }
-  try { recognizer.start(); } catch(e) { showBadge('⚠ ' + e.message, true); micOn = false; stopWave(); return; }
+  try { recognizer.start(); } catch(e) {
+    const _t = document.getElementById('noa-toast');
+    if (_t) { _t.textContent = '⚠ 音声認識エラー: ' + e.message; _t.classList.add('show'); setTimeout(() => _t.classList.remove('show'), 3500); }
+    showBadge('⚠ ' + e.message, true); micOn = false; stopWave(); return;
+  }
 }
 
 function stopMic() {
@@ -2378,6 +2481,7 @@ const termWrapEl = document.getElementById('term-wrap');
 let _mrDrag = false, _mrStartX = 0, _mrStartW = 0;
 mainResizeHandle.addEventListener('mousedown', e => {
   _mrDrag = true; _mrStartX = e.clientX; _mrStartW = termWrapEl.offsetWidth;
+  window._termResizeLocked = true;
   mainResizeHandle.classList.add('dragging'); _freezeIframes();
   document.addEventListener('mousemove', _mrMove);
   document.addEventListener('mouseup', _mrUp);
@@ -2385,14 +2489,23 @@ mainResizeHandle.addEventListener('mousedown', e => {
 });
 function _mrMove(e) {
   if (!_mrDrag) return;
-  const newW = Math.max(120, Math.min(600, _mrStartW + (e.clientX - _mrStartX)));
+  const newW = Math.max(120, Math.min(800, _mrStartW + (e.clientX - _mrStartX)));
   termWrapEl.style.width = newW + 'px';
 }
 function _mrUp() {
   _mrDrag = false; mainResizeHandle.classList.remove('dragging');
   document.removeEventListener('mousemove', _mrMove);
   document.removeEventListener('mouseup', _mrUp);
-  _thawIframes(); scheduleReflow();
+  _thawIframes();
+  window._termResizeLocked = false;
+  // ドラッグ終了後に1回だけリサイズ＋Claude Code再描画
+  requestAnimationFrame(() => {
+    try { fit.fit(); sendResize(); } catch {}
+    const w = termWrapEl.offsetWidth;
+    localStorage.setItem(LS.panelWidth, w);
+    // Claude CodeのTUIに再描画を促す（^L）
+    setTimeout(() => { if (ws && ws.readyState === WebSocket.OPEN) send({ type:'input', data:'\f' }); }, 120);
+  });
   if (monacoEditor) monacoEditor.layout();
 }
 mainResizeHandle.addEventListener('touchstart', e => {
@@ -3044,6 +3157,7 @@ function _saveManualTodos(project, todos) {
 }
 let _activeProject = null;
 const _notifications = new Set(); // 未読通知があるプロジェクト名
+const _sessionHealth = new Map(); // projName → { pid, cwd, ok, error }
 // カスタムタブ（ユーザーが自由に追加したタブ）
 let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
 // カスタムタブのタスクデータ（localStorageに保存）
@@ -3141,7 +3255,31 @@ function _cctUpdateTabs() {
       wrap.append(tab, delBtn);
       if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, delBtn); }
     } else {
-      // プロジェクトタブ: ↗ 新規ウィンドウ + × 削除
+      // プロジェクトタブ: 健全性ドット + ↺ 再起動 + ↗ 新規ウィンドウ + × 削除
+      // ── 健全性インジケーター ──
+      const health = _sessionHealth.get(p);
+      const healthDot = document.createElement('div');
+      healthDot.className = 'cct-health ' + (health ? (health.ok ? 'ok' : 'warn') : 'unknown');
+      const sessId = `proj:${p}`;
+      const pidText = health ? `PID: ${health.pid}` : '未接続';
+      const cwdText = health?.cwd ? `\ncwd: ${health.cwd}` : '';
+      const errText = health?.error ? `\n${health.error}` : '';
+      healthDot.title = `セッション: ${pidText}${cwdText}${errText}`;
+
+      // ── 再起動ボタン ──
+      const restartBtn = document.createElement('button');
+      restartBtn.className = 'cct-tab-restart';
+      restartBtn.title = `${p} のセッションを再起動`;
+      restartBtn.textContent = '↺';
+      restartBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!confirm(`"${p}" のターミナルを再起動しますか？\n実行中の作業は中断されます。`)) return;
+        restartBtn.textContent = '…';
+        restartBtn.disabled = true;
+        send({ type: 'proj-restart', name: p, cols: term?.cols || 120, rows: term?.rows || 36 });
+        setTimeout(() => { restartBtn.textContent = '↺'; restartBtn.disabled = false; }, 3000);
+      });
+
       const openBtn = document.createElement('button');
       openBtn.className = 'cct-tab-open';
       openBtn.title = `${p} を新規ウィンドウで開く`;
@@ -3167,7 +3305,7 @@ function _cctUpdateTabs() {
           } catch(err) { _noaConfirm('削除失敗: ' + err.message, () => {}); }
         });
       });
-      wrap.append(tab, openBtn, delBtn);
+      wrap.append(healthDot, tab, restartBtn, openBtn, delBtn);
       if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, openBtn); }
     }
     tabsEl.appendChild(wrap);
@@ -3184,7 +3322,10 @@ function _cctUpdateTabs() {
     relBtn.addEventListener('click', () => {
       _activeProject = null;
       localStorage.removeItem('noa_last_project');
-      document.querySelectorAll('.ft-item.active').forEach(e => e.classList.remove('active'));
+      _treeExpanded.clear();
+      document.querySelectorAll('.ft-item.active, .ft-item.cwd-active').forEach(e => {
+        e.classList.remove('active', 'cwd-active');
+      });
       _cctUpdateTabs();
       _cctRender(null);
       _doLoadFileTree(); // ファイルツリーをルートに戻す（セッションは維持）
@@ -3238,6 +3379,10 @@ function _switchToProjectSession(projName) {
   const labelEl = document.getElementById('sess-label');
   if (labelEl) labelEl.textContent = projName;
   document.title = `Noa — ${projName}`;
+  // URLとlocalStorageを現在のプロジェクトに同期 → リロード/アプリ復帰でここに戻れる
+  localStorage.setItem('noa_last_project', projName);
+  const _tok = encodeURIComponent(localStorage.getItem(LS.token) || new URLSearchParams(location.search).get('token') || '');
+  history.replaceState(null, '', `?s=proj:${encodeURIComponent(projName)}&token=${_tok}`);
   // スクロールバック受信後に最下部へ（WS 1往復 + xterm.js 描画待ち）
   setTimeout(() => { if (term) term.scrollToBottom(); }, 400);
 }
@@ -3422,14 +3567,6 @@ document.getElementById('cct-add-input').addEventListener('keydown', e => {
 })();
 
 function _updateTermTop() {
-  const termEl = document.getElementById('term-el');
-  if (!termEl) return;
-  const ccTodosEl = document.getElementById('cc-todos');
-  const ccOpen = ccTodosEl && ccTodosEl.classList.contains('open');
-  const ccH  = ccOpen  ? Math.min(ccTodosEl.scrollHeight, 240) : 0;
-  const cchH = _cchOpen ? Math.min(ccHistoryEl.scrollHeight, 320) : 0;
-  const thH  = _thOpen  ? Math.min(taskHistoryEl.scrollHeight, 200) : 0;
-  termEl.style.top = (28 + ccH + cchH + thH) + 'px';
   if (fit) try { fit.fit(); } catch {}
 }
 
@@ -3499,25 +3636,45 @@ function _cchRender(entries) {
   ccHistoryEl.scrollTop = 0;
 }
 
-document.getElementById('cc-todo-btn').addEventListener('click', () => {
-  const ccTodos = document.getElementById('cc-todos');
-  const willOpen = !ccTodos.classList.contains('open');
-  _closeAllPanels();
-  if (willOpen) {
-    ccTodos.classList.add('open');
-    document.getElementById('cc-todo-btn').style.opacity = '1';
-    document.getElementById('cct-reg-trigger').style.display = '';
-    // タスクが0件ならヒントを表示
-    if (Object.keys(_todosData).length === 0) {
-      document.getElementById('cct-list').innerHTML =
-        '<div style="padding:.75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace;line-height:1.8">' +
-        'Claude Code でタスクを作成すると<br>ここにプロジェクト別に表示されます。<br><br>' +
-        '<span style="color:var(--dim)">ファイルツリーで右クリック（PCのみ）または<br>上の <b>⬡ パスで登録</b> からパスを直接入力できます</span>' +
-        '</div>';
+(function(){
+  const btn = document.getElementById('cc-todo-btn');
+  let _sx = 0, _sy = 0, _scrolled = false;
+  function _doToggle() {
+    const ccTodos = document.getElementById('cc-todos');
+    const willOpen = !ccTodos.classList.contains('open');
+    _closeAllPanels();
+    if (willOpen) {
+      ccTodos.classList.add('open');
+      btn.style.opacity = '1';
+      document.getElementById('cct-reg-trigger').style.display = '';
+      if (Object.keys(_todosData).length === 0) {
+        document.getElementById('cct-list').innerHTML =
+          '<div style="padding:.75rem;font-size:.62rem;color:var(--faint);font-family:\'Space Mono\',monospace;line-height:1.8">' +
+          'Claude Code でタスクを作成すると<br>ここにプロジェクト別に表示されます。<br><br>' +
+          '<span style="color:var(--dim)">ファイルツリーで右クリック（PCのみ）または<br>上の <b>⬡ パスで登録</b> からパスを直接入力できます</span>' +
+          '</div>';
+      }
     }
+    setTimeout(_updateTermTop, 230);
   }
-  setTimeout(_updateTermTop, 230);
-});
+  btn.addEventListener('touchstart', e => {
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; _scrolled = false;
+  }, { passive: true });
+  btn.addEventListener('touchmove', e => {
+    if (!_scrolled && (Math.abs(e.touches[0].clientX - _sx) > 8 || Math.abs(e.touches[0].clientY - _sy) > 8)) {
+      _scrolled = true;
+    }
+  }, { passive: true });
+  btn.addEventListener('touchend', e => {
+    if (_scrolled) return; // スクロール中 → touchend は何もしない (ghost click もフラグで防ぐ)
+    e.preventDefault(); // タップ確定 → synthetic click 防止
+    _doToggle();
+  }, { passive: false });
+  btn.addEventListener('click', () => {
+    if (_scrolled) { _scrolled = false; return; } // ghost click 防止
+    _doToggle();
+  });
+})();
 
 // ⬡ パスで登録 フォーム
 (function() {
@@ -3743,6 +3900,10 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
 </script>
 
 <div id="noa-toast"></div>
+<div id="session-alert">
+  <span id="session-alert-msg"></span>
+  <button id="session-alert-close" onclick="this.parentElement.classList.remove('show')">×</button>
+</div>
 
 <!-- コマンドパレット -->
 <div id="cmd-palette-ov">
