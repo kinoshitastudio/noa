@@ -287,6 +287,10 @@ app.post('/_restore', requireAuth, express.json({ limit: '4kb' }), (req, res) =>
 // ── session store ───────────────────────────────────────────────
 // sessions: Map<id, { pty, clients: Set<ws>, scrollback: string[], name, created }>
 const sessions = new Map();
+
+// claude 終了マーカー。起動コマンド末尾の printf が出力する OSC シーケンス（端末は無視する不可視文字）。
+// サーバーが検知したら scrollback を破棄してクライアントに clear を送る。
+const CC_EXIT_MARK = '\x1b]1337;NOACCEXIT\x07';
 let   sessionCounter = 1;
 
 function newSessionId() {
@@ -322,6 +326,15 @@ function createSession(id, cols = 120, rows = 36, name = '', cwd = '') {
   };
 
   ptyProc.onData(data => {
+    // claude をexitすると起動コマンド末尾の printf が CC_EXIT_MARK を出力する。
+    // それを検知したらこのセッションのスクロールバックを破棄し、クライアントにも画面消去を指示する。
+    // （exit しない限り会話履歴は scrollback に残り、再接続時に復元される）
+    if (data.includes(CC_EXIT_MARK)) {
+      data = data.split(CC_EXIT_MARK).join(''); // マーカー自体は画面に出さない
+      sess.scrollback = [];
+      broadcast(sess, { type: 'clear' });
+      if (!data) return;
+    }
     sess.scrollback.push(data);
     if (sess.scrollback.length > 2000) sess.scrollback.shift();
     broadcast(sess, { type: 'output', data });
@@ -357,8 +370,44 @@ function sessionList() {
     name:    s.name,
     created: s.created,
     clients: s.clients.size,
+    pid:     s.pty.pid,
   }));
 }
+
+// ── セッション健全性ウォッチドッグ (30秒ごと) ──────────────────────
+function runWatchdog() {
+  const projSessions = [...sessions.entries()].filter(([id]) => id.startsWith('proj:'));
+  if (projSessions.length === 0) return;
+
+  const pidMap = new Map(); // pid → sessId (重複検知用)
+  const health = [];
+
+  for (const [sessId, sess] of projSessions) {
+    const projName = sessId.replace(/^proj:/, '');
+    let cwd = null, ok = true, error = null;
+
+    // PTY の cwd を lsof で取得（macOS）
+    try {
+      const out = execSync(`lsof -p ${sess.pty.pid} -a -d cwd -F n 2>/dev/null`, { timeout: 2000, encoding: 'utf8' }).trim();
+      const nLine = out.split('\n').find(l => l.startsWith('n/'));
+      if (nLine) cwd = nLine.slice(1);
+    } catch {}
+
+    // PTY PID 重複 = tmux合流バグ再発
+    if (pidMap.has(sess.pty.pid)) {
+      ok = false;
+      error = `⚠ PTY重複: "${pidMap.get(sess.pty.pid)}" と同じPTY (PID:${sess.pty.pid}) です`;
+    } else {
+      pidMap.set(sess.pty.pid, sessId);
+    }
+
+    health.push({ sessId, projName, pid: sess.pty.pid, cwd, ok, error });
+  }
+
+  broadcastAll({ type: 'session-health', sessions: health });
+}
+setInterval(runWatchdog, 30000);
+setTimeout(runWatchdog, 5000); // 起動5秒後に初回チェック
 
 // ── websocket ───────────────────────────────────────────────────
 wss.on('connection', ws => {
@@ -417,9 +466,9 @@ wss.on('connection', ws => {
               const s = sessions.get(msg.id);
               if (pPath) {
                 s.pty.write(`cd "${pPath}"\n`);
-                setTimeout(() => { if (sessions.has(msg.id)) sessions.get(msg.id).pty.write(`claude\n`); }, 400);
+                setTimeout(() => { if (sessions.has(msg.id)) sessions.get(msg.id).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
               } else {
-                s.pty.write(`claude\n`);
+                s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
               }
             }, 400);
           } else {
@@ -468,10 +517,10 @@ wss.on('connection', ws => {
               s.pty.write(`cd "${projPath}"\n`);
               setTimeout(() => {
                 if (!sessions.has(sessId)) return;
-                sessions.get(sessId).pty.write(`claude\n`);
+                sessions.get(sessId).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
               }, 400);
             } else {
-              s.pty.write(`claude\n`);
+              s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
             }
           }, 400);
           console.log(`[proj] created project session for "${projName}" at ${projPath || 'home'}`);
@@ -516,6 +565,37 @@ wss.on('connection', ws => {
           sessions.delete(msg.id);
           broadcastAll({ type: 'sessions', list: sessionList() });
         }
+        break;
+      }
+
+      case 'proj-restart': {
+        if (!authed) break;
+        const rName = (msg.name || '').trim();
+        if (!rName) break;
+        const rSessId = `proj:${rName}`;
+        const rPath = _projectPaths[rName] || '';
+        // 既存セッションを強制終了
+        if (sessions.has(rSessId)) {
+          try { sessions.get(rSessId).pty.kill(); } catch {}
+          sessions.delete(rSessId);
+        }
+        // 新しいPTYで再起動
+        const rSess = createSession(rSessId, msg.cols || 120, msg.rows || 36, rName, rPath);
+        rSess.clients.add(ws);
+        broadcastAll({ type: 'sessions', list: sessionList() });
+        ws.send(JSON.stringify({ type: 'attached', id: rSess.id, name: rSess.name }));
+        setTimeout(() => {
+          if (!sessions.has(rSessId)) return;
+          const s = sessions.get(rSessId);
+          if (rPath) {
+            s.pty.write(`cd "${rPath}"\n`);
+            setTimeout(() => { if (sessions.has(rSessId)) sessions.get(rSessId).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
+          } else {
+            s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
+          }
+        }, 400);
+        ws.send(JSON.stringify({ type: 'proj-restarted', name: rName, pid: rSess.pty.pid }));
+        console.log(`[proj] restarted "${rName}" (new PID: ${rSess.pty.pid})`);
         break;
       }
 
