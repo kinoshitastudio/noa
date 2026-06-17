@@ -507,7 +507,19 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
   max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 #cc-todos.open{max-height:240px}
-.cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-bottom:1px solid var(--line);flex-shrink:0;align-items:center}
+/* プロジェクト切替ストリップ — cc-todos と同じドロップダウン方式・⊞ で開閉（タスクとは排他） */
+#proj-strip{overflow-y:auto;background:var(--bg2);border-bottom:1px solid var(--line);
+  position:absolute;top:28px;left:0;right:0;z-index:6;
+  max-height:0;transition:max-height .28s cubic-bezier(.4,0,.2,1);
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#proj-strip.open{max-height:170px}
+.ph-curproj{font-size:.6rem;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Space Mono',monospace;opacity:.75}
+.ph-curproj:not(:empty)::before{content:'▸ '}
+.p-colbtn.on{color:var(--accent)!important;opacity:1!important}
+#cc-todo-btn{position:relative}
+.cc-badge{position:absolute;top:-3px;right:-4px;background:var(--accent);color:#000;font-size:.5rem;font-weight:700;border-radius:7px;padding:0 3px;line-height:1.5;min-width:12px;text-align:center;display:none;font-family:'Space Mono',monospace}
+.cc-badge.show{display:inline-block}
+.cct-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;flex-shrink:0;align-items:center}
 .cct-progress{padding:4px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;flex-shrink:0}
 .cct-progress-bar{flex:1;height:3px;background:var(--line2);border-radius:2px;overflow:hidden}
 .cct-progress-fill{height:100%;background:var(--ok);border-radius:2px;transition:width .3s}
@@ -699,6 +711,24 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .mk.w{min-width:58px}
 #mob-mic-btn.mic-on{color:var(--danger);animation:pulse 1s infinite;opacity:1;border-color:var(--danger)}
 #mob-copy-btn[data-sel]{background:var(--accent)!important;color:#fff!important;font-weight:700!important;font-size:.6rem!important;opacity:1!important;border-radius:3px}
+/* ── フローティング十字キー (Termius風・非GBテーマ＋モバイルのみ) ── */
+#float-dpad{display:none;position:fixed;right:14px;bottom:120px;z-index:60;
+  background:rgba(20,20,20,.5);border:1px solid var(--line2);border-radius:14px;padding:5px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  flex-direction:column;align-items:center;gap:3px;touch-action:none;user-select:none;-webkit-user-select:none}
+@media(pointer:coarse){#float-dpad.show{display:flex}}
+body.gameboy #float-dpad{display:none!important} /* GBテーマは専用D-padがあるので出さない */
+.fd-grip{width:100%;text-align:center;color:var(--dim);font-size:.7rem;line-height:1;cursor:move;padding:1px 0 3px;opacity:.7}
+.fd-pad{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:3px}
+.fd-dir{border:1px solid var(--line2);background:rgba(255,255,255,.06);color:var(--fg);border-radius:8px;
+  font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  -webkit-tap-highlight-color:transparent;transition:background .1s,border-color .1s,color .1s}
+.fd-dir.pressed{background:var(--accent2);border-color:var(--accent);color:var(--accent)}
+.fd-dir[data-dir="up"]{grid-area:1/2}
+.fd-dir[data-dir="left"]{grid-area:2/1}
+.fd-dir[data-dir="enter"]{grid-area:2/2;font-size:.8rem}
+.fd-dir[data-dir="right"]{grid-area:2/3}
+.fd-dir[data-dir="down"]{grid-area:3/2}
 /* ── Gameboy D-pad (mobile only, gameboy theme) ── */
 #gb-dpad{
   display:none;flex-direction:column;flex-shrink:0;
@@ -1096,13 +1126,18 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
       <div class="p-header">
         <div id="term-col-btn" class="p-colbtn" title="端末を畳む">◀</div>
         <span class="ph-label">TERM</span>
-        <div id="cc-todo-btn" class="p-colbtn" title="Claude Codeタスク" style="margin-left:auto;font-size:.75rem;opacity:.4">⬡</div>
+        <span id="ph-curproj" class="ph-curproj" title="現在のプロジェクト"></span>
+        <div id="proj-toggle-btn" class="p-colbtn" title="プロジェクト切替" style="margin-left:auto;font-size:.82rem">⊞</div>
+        <div id="cc-todo-btn" class="p-colbtn" title="Claude Codeタスク" style="font-size:.75rem;opacity:.4">⬡<span id="cc-todo-badge" class="cc-badge"></span></div>
         <div id="cc-hist-btn" class="p-colbtn" title="Claude Code会話履歴" style="font-size:.8rem">↺</div>
         <div id="th-toggle-btn" class="p-colbtn" title="シェル履歴" style="font-size:.68rem">&gt;_</div>
       </div>
-      <!-- Claude Code タスクパネル -->
+      <!-- プロジェクト切替ストリップ（⊞ で開閉。タスクとは独立） -->
+      <div id="proj-strip" class="proj-strip">
+        <div id="cct-tabs" class="cct-tabs"></div>
+      </div>
+      <!-- Claude Code タスクパネル（⬡ で開閉） -->
       <div id="cc-todos">
-        <div id="cct-tabs" class="cct-tabs" style="display:none"></div>
         <div id="cct-progress" class="cct-progress" style="display:none">
           <span class="cct-progress-label" id="cct-progress-label">0/0</span>
           <div class="cct-progress-bar"><div class="cct-progress-fill" id="cct-progress-fill" style="width:0%"></div></div>
@@ -1306,7 +1341,8 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="opacity:.85;font-size:1rem;cursor:pointer">📷</label>
     <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;opacity:.85">🎤</div>
     <div class="mk" id="mob-copy-btn" title="選択テキストをコピー" style="font-size:.95rem;cursor:pointer;opacity:.85">📋</div>
-    <div class="mk" id="mob-palette-btn" title="コマンドパレット" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">⊞</div>
+    <div class="mk" id="mob-palette-btn" title="コマンドパレット" style="font-size:.95rem;cursor:pointer;opacity:.85">⊞</div>
+    <div class="mk" id="mob-dpad-btn" title="十字キー（フローティング）" style="font-size:1rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">🕹</div>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk" data-k="1">1</div>
     <div class="mk" data-k="2">2</div>
@@ -1332,6 +1368,17 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
     <div class="mk"   data-k="`">`</div>
   </div>
 
+  <!-- フローティング十字キー (Termius風・非GBテーマ＋モバイル) -->
+  <div id="float-dpad" aria-hidden="true">
+    <div class="fd-grip" id="fd-grip" title="ドラッグで移動">⠿</div>
+    <div class="fd-pad">
+      <button class="fd-dir" data-dir="up">▲</button>
+      <button class="fd-dir" data-dir="left">◀</button>
+      <button class="fd-dir fd-center" data-dir="enter">⏎</button>
+      <button class="fd-dir" data-dir="right">▶</button>
+      <button class="fd-dir" data-dir="down">▼</button>
+    </div>
+  </div>
   <!-- Gameboy D-pad (Gameboy theme + mobile only) -->
   <div id="gb-dpad">
     <div style="display:flex;align-items:center;gap:16px;width:100%;justify-content:center">
@@ -2456,6 +2503,66 @@ function _showUploadPreview(fpath, file) {
   });
 })();
 
+// ── フローティング十字キー (Termius風・非GBテーマ＋モバイル) ──
+(function(){
+  const pad = document.getElementById('float-dpad');
+  const toggleBtn = document.getElementById('mob-dpad-btn');
+  if (!pad || !toggleBtn) return;
+  const DIR = { up:'\x1b[A', down:'\x1b[B', right:'\x1b[C', left:'\x1b[D', enter:'\r' };
+  const REPEAT = new Set(['up','down','left','right']);
+
+  // 表示状態: 未設定ならON（Termius同様デフォルト表示）。'0'で非表示。
+  function _apply(show){
+    pad.classList.toggle('show', show);
+    toggleBtn.style.color = show ? 'var(--accent)' : '';
+    localStorage.setItem('noa_dpad', show ? '1' : '0');
+  }
+  _apply(localStorage.getItem('noa_dpad') !== '0');
+  toggleBtn.addEventListener('click', () => _apply(!pad.classList.contains('show')));
+
+  // 方向キー（↑↓←→は長押しリピート、⏎は単発）
+  pad.querySelectorAll('.fd-dir').forEach(btn => {
+    const dir = btn.dataset.dir;
+    const doSend = () => send({ type:'input', data: DIR[dir] });
+    let _pt = null, _ri = null;
+    const stop = () => { clearTimeout(_pt); clearInterval(_ri); _pt = _ri = null; btn.classList.remove('pressed'); };
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault(); e.stopPropagation();
+      btn.classList.add('pressed'); doSend();
+      if (REPEAT.has(dir)) _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350);
+    }, { passive:false });
+    btn.addEventListener('touchend', stop, { passive:true });
+    btn.addEventListener('touchcancel', stop, { passive:true });
+    btn.addEventListener('mousedown', () => { btn.classList.add('pressed'); doSend(); if (REPEAT.has(dir)) _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350); });
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+  });
+
+  // グリップでドラッグ移動（位置を保存）
+  const grip = document.getElementById('fd-grip');
+  let _dx = 0, _dy = 0, _drag = false;
+  function _start(cx, cy){ const r = pad.getBoundingClientRect(); _dx = cx - r.left; _dy = cy - r.top; _drag = true; pad.style.right = 'auto'; pad.style.bottom = 'auto'; }
+  function _move(cx, cy){
+    if (!_drag) return;
+    let x = Math.max(4, Math.min(window.innerWidth  - pad.offsetWidth  - 4, cx - _dx));
+    let y = Math.max(4, Math.min(window.innerHeight - pad.offsetHeight - 4, cy - _dy));
+    pad.style.left = x + 'px'; pad.style.top = y + 'px';
+  }
+  function _end(){ if (!_drag) return; _drag = false; localStorage.setItem('noa_dpad_pos', JSON.stringify({ left: pad.style.left, top: pad.style.top })); }
+  grip.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; _start(t.clientX, t.clientY); }, { passive:false });
+  grip.addEventListener('touchmove',  e => { e.preventDefault(); const t = e.touches[0]; _move(t.clientX, t.clientY); }, { passive:false });
+  grip.addEventListener('touchend', _end, { passive:true });
+  grip.addEventListener('mousedown', e => _start(e.clientX, e.clientY));
+  document.addEventListener('mousemove', e => _move(e.clientX, e.clientY));
+  document.addEventListener('mouseup', _end);
+
+  // 保存位置を復元
+  try {
+    const pos = JSON.parse(localStorage.getItem('noa_dpad_pos') || 'null');
+    if (pos && pos.left && pos.top) { pad.style.right = 'auto'; pad.style.bottom = 'auto'; pad.style.left = pos.left; pad.style.top = pos.top; }
+  } catch {}
+})();
+
 // ── KEYBOARD SHORTCUTS ──
 document.addEventListener('keydown', e => {
   if (!authed) { if (e.key==='Enter') document.getElementById('auth-btn').click(); return; }
@@ -3158,6 +3265,32 @@ function _saveManualTodos(project, todos) {
   try { localStorage.setItem('noa_manual_' + project, JSON.stringify(manuals)); } catch {}
 }
 let _activeProject = null;
+let _projStripInit = false;   // PC初回にプロジェクト行を開く処理を一度だけ
+// 未完タスク数（バッジ用）
+function _incompleteCount(p){
+  if (!p) return 0;
+  const isC = _isCustomTab(p);
+  const todos = isC ? (_customTodosData[p] || []) : (_todosData[p] || []);
+  return todos.filter(t => t.status !== 'completed').length;
+}
+// ヘッダーの現在プロジェクト名＋タスクバッジを更新
+function _updateHeaderProjInfo(){
+  const nameEl = document.getElementById('ph-curproj');
+  if (nameEl) nameEl.textContent = _activeProject || '';
+  const badge = document.getElementById('cc-todo-badge');
+  if (badge){
+    const n = _incompleteCount(_activeProject);
+    badge.textContent = n;
+    badge.classList.toggle('show', n > 0);
+  }
+}
+// ⊞/⬡ のアクティブ表示を開閉状態に同期
+function _syncHeaderToggles(){
+  const strip = document.getElementById('proj-strip');
+  const todos = document.getElementById('cc-todos');
+  document.getElementById('proj-toggle-btn')?.classList.toggle('on', !!strip && strip.classList.contains('open'));
+  document.getElementById('cc-todo-btn')?.classList.toggle('on', !!todos && todos.classList.contains('open'));
+}
 const _notifications = new Set(); // 未読通知があるプロジェクト名
 const _sessionHealth = new Map(); // projName → { pid, cwd, ok, error }
 // カスタムタブ（ユーザーが自由に追加したタブ）
@@ -3173,13 +3306,14 @@ function _saveCustomTabs() {
 function _isCustomTab(name) { return _customTabs.includes(name); }
 
 // iOS Safari で window.confirm() が動かないため独自モーダルを使う
-function _noaConfirm(msg, onOk) {
+function _noaConfirm(msg, onOk, okLabel) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center';
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1.1rem 1.2rem;max-width:260px;width:90%;font-family:"Space Mono",monospace;font-size:.63rem;color:var(--ink);line-height:1.7';
+  box.style.cssText = 'background:var(--panel,var(--bg2));border:1px solid var(--line);border-radius:4px;padding:1.1rem 1.2rem;max-width:260px;width:90%;font-family:"Space Mono",monospace;font-size:.63rem;color:var(--ink);line-height:1.7';
   const txt = document.createElement('div');
   txt.style.marginBottom = '.75rem';
+  txt.style.whiteSpace = 'pre-wrap';
   txt.textContent = msg;
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:.5rem;justify-content:flex-end';
@@ -3187,7 +3321,7 @@ function _noaConfirm(msg, onOk) {
   cancel.textContent = 'キャンセル';
   cancel.style.cssText = 'padding:3px 10px;font-size:.6rem;font-family:"Space Mono",monospace;background:none;border:1px solid var(--line2);border-radius:2px;color:var(--dim);cursor:pointer';
   const ok = document.createElement('button');
-  ok.textContent = '削除';
+  ok.textContent = okLabel || '削除';
   ok.style.cssText = 'padding:3px 10px;font-size:.6rem;font-family:"Space Mono",monospace;background:none;border:1px solid var(--warn,#e55);border-radius:2px;color:var(--warn,#e55);cursor:pointer';
   row.append(cancel, ok);
   box.append(txt, row);
@@ -3208,14 +3342,21 @@ function _cctUpdateTabs() {
 
   ccBtn.style.opacity = hasAny ? '1' : '0.4';
   if (!hasAny) {
-    tabsEl.style.display = 'none';
-    document.getElementById('cc-todos').classList.remove('open');
+    tabsEl.innerHTML = '';
+    _updateHeaderProjInfo();
     return;
   }
   // 無効になったプロジェクトなら null に戻す（自動選択はしない）
   if (_activeProject && !allTabs.includes(_activeProject)) _activeProject = null;
 
-  tabsEl.style.display = 'flex';
+  // PCは従来どおりプロジェクト行を初期表示。モバイルは畳んで端末最大（⊞で開く）
+  if (!_projStripInit) {
+    _projStripInit = true;
+    if (!window.matchMedia('(pointer:coarse)').matches) {
+      document.getElementById('proj-strip').classList.add('open');
+    }
+  }
+
   tabsEl.innerHTML = '';
 
   allTabs.forEach(p => {
@@ -3230,14 +3371,18 @@ function _cctUpdateTabs() {
     tab.addEventListener('click', () => {
       _activeProject = p;
       _notifications.delete(p);
-      _cctUpdateTabs();
-      _cctRender(p);
       if (!isCustom) {
         _switchToProjectSession(p);
         localStorage.setItem('noa_last_project', p);
         // プロジェクトフォルダをファイルツリーで表示
         if (_projectPaths[p]) _ftHighlightCwd(_projectPaths[p]);
+        // モバイル: 選んだら端末が見えるようプロジェクト行を畳む
+        if (window.matchMedia('(pointer:coarse)').matches) {
+          document.getElementById('proj-strip').classList.remove('open');
+        }
       }
+      _cctUpdateTabs();
+      _cctRender(p);
       setTimeout(_updateTermTop, 230);
     });
     if (isCustom) {
@@ -3275,11 +3420,12 @@ function _cctUpdateTabs() {
       restartBtn.textContent = '↺';
       restartBtn.addEventListener('click', e => {
         e.stopPropagation();
-        if (!confirm(`"${p}" のターミナルを再起動しますか？\n実行中の作業は中断されます。`)) return;
-        restartBtn.textContent = '…';
-        restartBtn.disabled = true;
-        send({ type: 'proj-restart', name: p, cols: term?.cols || 120, rows: term?.rows || 36 });
-        setTimeout(() => { restartBtn.textContent = '↺'; restartBtn.disabled = false; }, 3000);
+        _noaConfirm(`"${p}" のターミナルを再起動しますか？\n実行中の作業は中断されます。`, () => {
+          restartBtn.textContent = '…';
+          restartBtn.disabled = true;
+          send({ type: 'proj-restart', name: p, cols: term?.cols || 120, rows: term?.rows || 36 });
+          setTimeout(() => { restartBtn.textContent = '↺'; restartBtn.disabled = false; }, 3000);
+        }, '再起動');
       });
 
       const openBtn = document.createElement('button');
@@ -3367,6 +3513,8 @@ function _cctUpdateTabs() {
   tabsEl.appendChild(addBtn);
 
   _cctRender(_activeProject);
+  _updateHeaderProjInfo();
+  _syncHeaderToggles();
 }
 
 // プロジェクトタブクリック → 同一ウィンドウ内でターミナルセッションを切り替え
@@ -3472,8 +3620,13 @@ function _cctRender(project) {
 
   ccBtn.style.opacity = '1';
   const hasActive = todos.some(t => t.status === 'in_progress');
-  if (hasActive) { ccTodos.classList.add('open'); ccBtn.style.color = 'var(--accent)'; }
-  else ccBtn.style.color = '';
+  // 進行中タスクがあれば自動でタスクパネルを開く（モバイルは端末最大優先なので開かない）
+  if (hasActive && !window.matchMedia('(pointer:coarse)').matches) {
+    ccTodos.classList.add('open');
+  }
+  ccBtn.style.color = hasActive ? 'var(--accent)' : '';
+  _updateHeaderProjInfo();
+  _syncHeaderToggles();
 }
 
 // タスクトグル (pending/in_progress → completed, completed → pending)
@@ -3608,11 +3761,34 @@ window.addEventListener('pageshow', (e) => {
 function _closeAllPanels() {
   document.getElementById('cc-todos').classList.remove('open');
   document.getElementById('cc-todo-btn').style.opacity = '0.5';
+  document.getElementById('proj-strip').classList.remove('open'); // ⊞ プロジェクト行も閉じる（タスクと排他）
   ccHistoryEl.classList.remove('open'); _cchOpen = false;
   document.getElementById('cc-hist-btn').style.color = '';
   taskHistoryEl.classList.remove('open'); _thOpen = false;
   thToggleBtn.style.color = '';
+  _syncHeaderToggles();
 }
+
+// ⊞ プロジェクト切替ストリップの開閉（タスク・履歴とは排他）
+(function(){
+  const btn = document.getElementById('proj-toggle-btn');
+  if (!btn) return;
+  let _sx = 0, _sy = 0, _scrolled = false;
+  function _doToggle(){
+    const strip = document.getElementById('proj-strip');
+    const willOpen = !strip.classList.contains('open');
+    _closeAllPanels();
+    if (willOpen) strip.classList.add('open');
+    _syncHeaderToggles();
+    setTimeout(_updateTermTop, 230);
+  }
+  btn.addEventListener('touchstart', e => { _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; _scrolled = false; }, { passive: true });
+  btn.addEventListener('touchmove', e => {
+    if (!_scrolled && (Math.abs(e.touches[0].clientX - _sx) > 8 || Math.abs(e.touches[0].clientY - _sy) > 8)) _scrolled = true;
+  }, { passive: true });
+  btn.addEventListener('touchend', e => { if (_scrolled) return; e.preventDefault(); _doToggle(); }, { passive: false });
+  btn.addEventListener('click', () => { if (_scrolled) { _scrolled = false; return; } _doToggle(); });
+})();
 
 function _thRender(cmds) {
   taskHistoryEl.innerHTML = '';
@@ -3665,6 +3841,7 @@ function _cchRender(entries) {
           '</div>';
       }
     }
+    _syncHeaderToggles();
     setTimeout(_updateTermTop, 230);
   }
   btn.addEventListener('touchstart', e => {
@@ -4004,22 +4181,24 @@ document.getElementById('sp-efd-btn').addEventListener('click', () => {
     } catch(e) { alert('エラー: ' + e.message); }
   });
 
-  document.getElementById('ft-ctx-delete').addEventListener('click', async () => {
+  document.getElementById('ft-ctx-delete').addEventListener('click', () => {
     if (!_ctxTarget) return;
     ctxMenu.style.display = 'none';
-    if (!confirm(`"${_ctxTarget.name}" を削除しますか？`)) return;
-    try {
-      const r = await fetch(`/_delete?token=${encodeURIComponent(_tok())}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: _ctxTarget.path })
-      });
-      const d = await r.json();
-      if (d.ok) {
-        _undoStack.push({ type: 'delete', trashPath: d.trashPath, originalPath: _ctxTarget.path });
-        window._doLoadFileTree && window._doLoadFileTree();
-        _toast(`"${_ctxTarget.name}" を削除しました — Cmd+Z で元に戻せます`);
-      } else alert('削除失敗: ' + d.error);
-    } catch(e) { alert('エラー: ' + e.message); }
+    const target = _ctxTarget; // モーダル表示中に _ctxTarget が変わっても大丈夫なよう捕捉
+    _noaConfirm(`"${target.name}" を削除しますか？`, async () => {
+      try {
+        const r = await fetch(`/_delete?token=${encodeURIComponent(_tok())}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: target.path })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          _undoStack.push({ type: 'delete', trashPath: d.trashPath, originalPath: target.path });
+          window._doLoadFileTree && window._doLoadFileTree();
+          _toast(`"${target.name}" を削除しました — Cmd+Z で元に戻せます`);
+        } else _toast('削除失敗: ' + d.error);
+      } catch(e) { _toast('エラー: ' + e.message); }
+    }, '削除');
   });
 
   // Cmd+Z: Undo

@@ -341,7 +341,8 @@ function createSession(id, cols = 120, rows = 36, name = '', cwd = '') {
   });
 
   ptyProc.onExit(({ exitCode }) => {
-    broadcast(sess, { type: 'exit', code: exitCode, id });
+    // 意図的な再起動(_silentExit)では [session ended] を出さない
+    if (!sess._silentExit) broadcast(sess, { type: 'exit', code: exitCode, id });
     sessions.delete(id);
     broadcastAll({ type: 'sessions', list: sessionList() });
   });
@@ -466,9 +467,9 @@ wss.on('connection', ws => {
               const s = sessions.get(msg.id);
               if (pPath) {
                 s.pty.write(`cd "${pPath}"\n`);
-                setTimeout(() => { if (sessions.has(msg.id)) sessions.get(msg.id).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
+                setTimeout(() => { if (sessions.has(msg.id)) sessions.get(msg.id).pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
               } else {
-                s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
+                s.pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
               }
             }, 400);
           } else {
@@ -517,10 +518,10 @@ wss.on('connection', ws => {
               s.pty.write(`cd "${projPath}"\n`);
               setTimeout(() => {
                 if (!sessions.has(sessId)) return;
-                sessions.get(sessId).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
+                sessions.get(sessId).pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
               }, 400);
             } else {
-              s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
+              s.pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
             }
           }, 400);
           console.log(`[proj] created project session for "${projName}" at ${projPath || 'home'}`);
@@ -574,9 +575,11 @@ wss.on('connection', ws => {
         if (!rName) break;
         const rSessId = `proj:${rName}`;
         const rPath = _projectPaths[rName] || '';
-        // 既存セッションを強制終了
+        // 既存セッションを強制終了（意図的なので [session ended] は出さない）
         if (sessions.has(rSessId)) {
-          try { sessions.get(rSessId).pty.kill(); } catch {}
+          const old = sessions.get(rSessId);
+          old._silentExit = true;
+          try { old.pty.kill(); } catch {}
           sessions.delete(rSessId);
         }
         // 新しいPTYで再起動
@@ -584,14 +587,15 @@ wss.on('connection', ws => {
         rSess.clients.add(ws);
         broadcastAll({ type: 'sessions', list: sessionList() });
         ws.send(JSON.stringify({ type: 'attached', id: rSess.id, name: rSess.name }));
+        ws.send(JSON.stringify({ type: 'clear' })); // 古い表示を消してから新claudeを描画
         setTimeout(() => {
           if (!sessions.has(rSessId)) return;
           const s = sessions.get(rSessId);
           if (rPath) {
             s.pty.write(`cd "${rPath}"\n`);
-            setTimeout(() => { if (sessions.has(rSessId)) sessions.get(rSessId).pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
+            setTimeout(() => { if (sessions.has(rSessId)) sessions.get(rSessId).pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`); }, 400);
           } else {
-            s.pty.write(`claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
+            s.pty.write(`clear; claude --continue 2>/dev/null || claude; printf '\\033]1337;NOACCEXIT\\007'; clear\n`);
           }
         }, 400);
         ws.send(JSON.stringify({ type: 'proj-restarted', name: rName, pid: rSess.pty.pid }));
