@@ -1,12 +1,30 @@
 # Noa
 
-A browser-based terminal for your Mac — built for running [Claude Code](https://claude.ai/code) from iPhone or any remote device.
+A browser-based terminal for your Mac — built for running [Claude Code](https://claude.com/claude-code) from iPhone or any remote device.
 
 Three-column layout: terminal, editor, and file tree in one view.
 
 ```
 TERM  │  EDITOR  │  FILES + PREVIEW
 ```
+
+---
+
+## Requirements
+
+Noa runs on **macOS** (Linux mostly works; Windows is not supported).
+
+- **Node.js 18+** — [nodejs.org](https://nodejs.org/)
+- **Xcode Command Line Tools** — required to build `node-pty` (otherwise `npm install` fails). Run once:
+  ```bash
+  xcode-select --install
+  ```
+- **Claude Code** — *only if you want to use Claude inside Noa.* Noa auto-launches the `claude` command when you open a project, so install and log in first (otherwise you'll see `command not found: claude`):
+  ```bash
+  npm install -g @anthropic-ai/claude-code
+  claude   # then run once to log in — opens a browser (needs a Claude Pro/Max plan or API key)
+  ```
+  Details: [claude.com/claude-code](https://claude.com/claude-code)
 
 ---
 

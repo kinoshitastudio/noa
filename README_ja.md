@@ -1,12 +1,30 @@
 # Noa
 
-iPhone やリモートデバイスから [Claude Code](https://claude.ai/code) を操作するための、ブラウザベースのターミナルです。
+iPhone やリモートデバイスから [Claude Code](https://claude.com/claude-code) を操作するための、ブラウザベースのターミナルです。
 
 3カラムレイアウトで、ターミナル・エディター・ファイルツリーを一画面に。
 
 ```
 TERM  │  EDITOR  │  FILES + PREVIEW
 ```
+
+---
+
+## 必要なもの
+
+Noa は **macOS** で動きます（Linux もおおむね動作・Windows 非対応）。
+
+- **Node.js 18 以上** — [nodejs.org](https://nodejs.org/ja/)
+- **Xcode Command Line Tools** — `node-pty` のビルドに必要（無いと `npm install` が失敗します）。一度だけ実行：
+  ```bash
+  xcode-select --install
+  ```
+- **Claude Code** — *Noa の中で Claude を使う場合のみ。* Noa はプロジェクトを開くと `claude` を自動起動するので、先に入れてログインしておきます（未導入だと `command not found: claude` になります）：
+  ```bash
+  npm install -g @anthropic-ai/claude-code
+  claude   # 一度実行するとブラウザが開いてログインできます（Claude の Pro/Max プラン or API キーが必要）
+  ```
+  詳細：[claude.com/claude-code](https://claude.com/claude-code)
 
 ---
 
