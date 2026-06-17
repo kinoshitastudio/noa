@@ -375,12 +375,40 @@ function sessionList() {
   }));
 }
 
+// 稼働中の claude プロセスを cwd 別に数える（Noa外のエージェントも検知）
+function _claudeCountByDir() {
+  const map = {};
+  let pids = [];
+  try {
+    pids = execSync(`pgrep -f "claude" 2>/dev/null`, { timeout: 2000, encoding: 'utf8' })
+      .trim().split('\n').filter(Boolean).slice(0, 16); // execSyncはブロックするので上限
+  } catch {}
+  for (const pid of pids) {
+    try {
+      const out = execSync(`lsof -p ${pid} -a -d cwd -F n 2>/dev/null`, { timeout: 1500, encoding: 'utf8' }).trim();
+      const nLine = out.split('\n').find(l => l.startsWith('n/'));
+      if (nLine) { const c = nLine.slice(1); map[c] = (map[c] || 0) + 1; }
+    } catch {}
+  }
+  return map;
+}
+// あるプロジェクトdir配下で動いている claude 数
+function _agentsForPath(dirMap, projPath) {
+  if (!projPath) return 0;
+  let n = 0;
+  for (const [dir, cnt] of Object.entries(dirMap)) {
+    if (dir === projPath || dir.startsWith(projPath + '/')) n += cnt;
+  }
+  return n;
+}
+
 // ── セッション健全性ウォッチドッグ (30秒ごと) ──────────────────────
 function runWatchdog() {
   const projSessions = [...sessions.entries()].filter(([id]) => id.startsWith('proj:'));
   if (projSessions.length === 0) return;
 
   const pidMap = new Map(); // pid → sessId (重複検知用)
+  const dirMap = _claudeCountByDir(); // 同時編集警告用: cwd別 claude 数
   const health = [];
 
   for (const [sessId, sess] of projSessions) {
@@ -402,7 +430,10 @@ function runWatchdog() {
       pidMap.set(sess.pty.pid, sessId);
     }
 
-    health.push({ sessId, projName, pid: sess.pty.pid, cwd, ok, error });
+    // 同時編集の警告材料: このプロジェクトを開いているクライアント数と、dir内で動くclaude数
+    const projPath = _projectPaths[projName] || cwd;
+    const agents = _agentsForPath(dirMap, projPath);
+    health.push({ sessId, projName, pid: sess.pty.pid, cwd, ok, error, clients: sess.clients.size, agents });
   }
 
   broadcastAll({ type: 'session-health', sessions: health });

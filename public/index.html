@@ -536,6 +536,7 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .cct-add-btn:hover{color:var(--accent)}
 .cct-tab{padding:2px 7px;font-size:.6rem;border-radius:2px;cursor:pointer;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);font-family:'Space Mono',monospace;white-space:nowrap;line-height:1.6;transition:all var(--trans)}
 .cct-tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.cct-tab-warn{color:var(--danger,#e55);font-size:.72rem;line-height:1;cursor:help;align-self:center;animation:notifypulse 1.4s infinite}
 .cct-tab-open{padding:2px 5px;font-size:.65rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.7;transition:opacity var(--trans),color var(--trans),transform var(--trans)}
 .cct-tab-open:hover{opacity:1;color:var(--accent);transform:scale(1.2)}
 .cct-tab-del{padding:2px 4px;font-size:.6rem;cursor:pointer;color:var(--dim);background:none;border:none;line-height:1.6;opacity:.5;transition:opacity var(--trans),color var(--trans)}
@@ -3202,7 +3203,19 @@ function _syncHeaderToggles(){
   document.getElementById('cc-todo-btn')?.classList.toggle('on', !!todos && todos.classList.contains('open'));
 }
 const _notifications = new Set(); // 未読通知があるプロジェクト名
-const _sessionHealth = new Map(); // projName → { pid, cwd, ok, error }
+const _sessionHealth = new Map(); // projName → { pid, cwd, ok, error, clients, agents }
+// 同時編集の危険検知: 同じプロジェクトdirで claude が2個以上動いていれば警告（Noa外のエージェントも含む）
+function _projConcurrency(p){
+  const h = _sessionHealth.get(p);
+  if (!h) return null;
+  const agents = h.agents || 0;
+  if (agents >= 2) {
+    const clients = h.clients || 0;
+    const extra = clients >= 2 ? `・${clients}端末が接続中` : '';
+    return { msg: `"${p}" は別のエージェント(claude)が同じプロジェクトで動いています（claude ${agents}個${extra}）。同時編集はファイル競合の恐れがあります。` };
+  }
+  return null;
+}
 // カスタムタブ（ユーザーが自由に追加したタブ）
 let _customTabs = JSON.parse(localStorage.getItem('noa_custom_tabs') || '[]');
 // カスタムタブのタスクデータ（localStorageに保存）
@@ -3279,21 +3292,27 @@ function _cctUpdateTabs() {
     const inProg = todos.filter(t => t.status === 'in_progress').length;
     tab.textContent = p + (inProg ? ' ▶' : '');
     tab.addEventListener('click', () => {
-      _activeProject = p;
-      _notifications.delete(p);
-      if (!isCustom) {
-        _switchToProjectSession(p);
-        localStorage.setItem('noa_last_project', p);
-        // プロジェクトフォルダをファイルツリーで表示
-        if (_projectPaths[p]) _ftHighlightCwd(_projectPaths[p]);
-        // モバイル: 選んだら端末が見えるようプロジェクト行を畳む
-        if (window.matchMedia('(pointer:coarse)').matches) {
-          document.getElementById('proj-strip').classList.remove('open');
+      const proceed = () => {
+        _activeProject = p;
+        _notifications.delete(p);
+        if (!isCustom) {
+          _switchToProjectSession(p);
+          localStorage.setItem('noa_last_project', p);
+          // プロジェクトフォルダをファイルツリーで表示
+          if (_projectPaths[p]) _ftHighlightCwd(_projectPaths[p]);
+          // モバイル: 選んだら端末が見えるようプロジェクト行を畳む
+          if (window.matchMedia('(pointer:coarse)').matches) {
+            document.getElementById('proj-strip').classList.remove('open');
+          }
         }
-      }
-      _cctUpdateTabs();
-      _cctRender(p);
-      setTimeout(_updateTermTop, 230);
+        _cctUpdateTabs();
+        _cctRender(p);
+        setTimeout(_updateTermTop, 230);
+      };
+      // 別プロジェクトの端末に切り替える時、他でエージェント稼働中なら確認モーダル
+      const warn = (!isCustom && p !== _activeProject) ? _projConcurrency(p) : null;
+      if (warn) _noaConfirm('⚠ ' + warn.msg + '\n\n続けますか？', proceed, '続ける');
+      else proceed();
     });
     if (isCustom) {
       // カスタムタブ: × 削除ボタン
@@ -3365,6 +3384,9 @@ function _cctUpdateTabs() {
       });
       wrap.append(healthDot, tab, restartBtn, openBtn, delBtn);
       if (_notifications.has(p)) { const d=document.createElement('div'); d.className='cct-tab-notify'; d.title='Claude が決定を求めています'; wrap.insertBefore(d, openBtn); }
+      // 同時編集の警告バッジ（同じプロジェクトで複数のclaudeが稼働中）
+      const _conc = _projConcurrency(p);
+      if (_conc) { const w = document.createElement('span'); w.className = 'cct-tab-warn'; w.textContent = '⚠'; w.title = _conc.msg; wrap.insertBefore(w, restartBtn); }
     }
     tabsEl.appendChild(wrap);
   });
