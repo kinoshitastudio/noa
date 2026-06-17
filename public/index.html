@@ -711,24 +711,6 @@ body.light .hd-btn:hover{background:rgba(0,0,0,.07)}
 .mk.w{min-width:58px}
 #mob-mic-btn.mic-on{color:var(--danger);animation:pulse 1s infinite;opacity:1;border-color:var(--danger)}
 #mob-copy-btn[data-sel]{background:var(--accent)!important;color:#fff!important;font-weight:700!important;font-size:.6rem!important;opacity:1!important;border-radius:3px}
-/* ── フローティング十字キー (Termius風・非GBテーマ＋モバイルのみ) ── */
-#float-dpad{display:none;position:fixed;right:14px;bottom:120px;z-index:60;
-  background:rgba(20,20,20,.5);border:1px solid var(--line2);border-radius:14px;padding:5px;
-  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-  flex-direction:column;align-items:center;gap:3px;touch-action:none;user-select:none;-webkit-user-select:none}
-@media(pointer:coarse){#float-dpad.show{display:flex}}
-body.gameboy #float-dpad{display:none!important} /* GBテーマは専用D-padがあるので出さない */
-.fd-grip{width:100%;text-align:center;color:var(--dim);font-size:.7rem;line-height:1;cursor:move;padding:1px 0 3px;opacity:.7}
-.fd-pad{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:3px}
-.fd-dir{border:1px solid var(--line2);background:rgba(255,255,255,.06);color:var(--fg);border-radius:8px;
-  font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
-  -webkit-tap-highlight-color:transparent;transition:background .1s,border-color .1s,color .1s}
-.fd-dir.pressed{background:var(--accent2);border-color:var(--accent);color:var(--accent)}
-.fd-dir[data-dir="up"]{grid-area:1/2}
-.fd-dir[data-dir="left"]{grid-area:2/1}
-.fd-dir[data-dir="enter"]{grid-area:2/2;font-size:.8rem}
-.fd-dir[data-dir="right"]{grid-area:2/3}
-.fd-dir[data-dir="down"]{grid-area:3/2}
 /* ── Gameboy D-pad (mobile only, gameboy theme) ── */
 #gb-dpad{
   display:none;flex-direction:column;flex-shrink:0;
@@ -1341,8 +1323,7 @@ body.gameboy #float-dpad{display:none!important} /* GBテーマは専用D-padが
     <label for="mob-img-input" class="mk mk-img" id="mob-img-btn" title="写真を送る" style="opacity:.85;font-size:1rem;cursor:pointer">📷</label>
     <div class="mk" id="mob-mic-btn" title="音声入力" style="font-size:.95rem;cursor:pointer;opacity:.85">🎤</div>
     <div class="mk" id="mob-copy-btn" title="選択テキストをコピー" style="font-size:.95rem;cursor:pointer;opacity:.85">📋</div>
-    <div class="mk" id="mob-palette-btn" title="コマンドパレット" style="font-size:.95rem;cursor:pointer;opacity:.85">⊞</div>
-    <div class="mk" id="mob-dpad-btn" title="十字キー（フローティング）" style="font-size:1rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">🕹</div>
+    <div class="mk" id="mob-palette-btn" title="コマンドパレット" style="font-size:.95rem;cursor:pointer;border-right:1px solid var(--accent);opacity:.85">⊞</div>
     <div class="mk" style="width:1px;background:var(--line2);padding:0;min-width:1px;margin:4px 2px"></div>
     <div class="mk" data-k="1">1</div>
     <div class="mk" data-k="2">2</div>
@@ -1368,17 +1349,6 @@ body.gameboy #float-dpad{display:none!important} /* GBテーマは専用D-padが
     <div class="mk"   data-k="`">`</div>
   </div>
 
-  <!-- フローティング十字キー (Termius風・非GBテーマ＋モバイル) -->
-  <div id="float-dpad" aria-hidden="true">
-    <div class="fd-grip" id="fd-grip" title="ドラッグで移動">⠿</div>
-    <div class="fd-pad">
-      <button class="fd-dir" data-dir="up">▲</button>
-      <button class="fd-dir" data-dir="left">◀</button>
-      <button class="fd-dir fd-center" data-dir="enter">⏎</button>
-      <button class="fd-dir" data-dir="right">▶</button>
-      <button class="fd-dir" data-dir="down">▼</button>
-    </div>
-  </div>
   <!-- Gameboy D-pad (Gameboy theme + mobile only) -->
   <div id="gb-dpad">
     <div style="display:flex;align-items:center;gap:16px;width:100%;justify-content:center">
@@ -2501,66 +2471,6 @@ function _showUploadPreview(fpath, file) {
     btn.addEventListener('touchstart', e => { e.preventDefault(); send({ type:'input', data: btn.dataset.k }); }, { passive:false });
     btn.addEventListener('click', () => send({ type:'input', data: btn.dataset.k }));
   });
-})();
-
-// ── フローティング十字キー (Termius風・非GBテーマ＋モバイル) ──
-(function(){
-  const pad = document.getElementById('float-dpad');
-  const toggleBtn = document.getElementById('mob-dpad-btn');
-  if (!pad || !toggleBtn) return;
-  const DIR = { up:'\x1b[A', down:'\x1b[B', right:'\x1b[C', left:'\x1b[D', enter:'\r' };
-  const REPEAT = new Set(['up','down','left','right']);
-
-  // 表示状態: 未設定ならON（Termius同様デフォルト表示）。'0'で非表示。
-  function _apply(show){
-    pad.classList.toggle('show', show);
-    toggleBtn.style.color = show ? 'var(--accent)' : '';
-    localStorage.setItem('noa_dpad', show ? '1' : '0');
-  }
-  _apply(localStorage.getItem('noa_dpad') !== '0');
-  toggleBtn.addEventListener('click', () => _apply(!pad.classList.contains('show')));
-
-  // 方向キー（↑↓←→は長押しリピート、⏎は単発）
-  pad.querySelectorAll('.fd-dir').forEach(btn => {
-    const dir = btn.dataset.dir;
-    const doSend = () => send({ type:'input', data: DIR[dir] });
-    let _pt = null, _ri = null;
-    const stop = () => { clearTimeout(_pt); clearInterval(_ri); _pt = _ri = null; btn.classList.remove('pressed'); };
-    btn.addEventListener('touchstart', e => {
-      e.preventDefault(); e.stopPropagation();
-      btn.classList.add('pressed'); doSend();
-      if (REPEAT.has(dir)) _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350);
-    }, { passive:false });
-    btn.addEventListener('touchend', stop, { passive:true });
-    btn.addEventListener('touchcancel', stop, { passive:true });
-    btn.addEventListener('mousedown', () => { btn.classList.add('pressed'); doSend(); if (REPEAT.has(dir)) _pt = setTimeout(() => { _ri = setInterval(doSend, 60); }, 350); });
-    btn.addEventListener('mouseup', stop);
-    btn.addEventListener('mouseleave', stop);
-  });
-
-  // グリップでドラッグ移動（位置を保存）
-  const grip = document.getElementById('fd-grip');
-  let _dx = 0, _dy = 0, _drag = false;
-  function _start(cx, cy){ const r = pad.getBoundingClientRect(); _dx = cx - r.left; _dy = cy - r.top; _drag = true; pad.style.right = 'auto'; pad.style.bottom = 'auto'; }
-  function _move(cx, cy){
-    if (!_drag) return;
-    let x = Math.max(4, Math.min(window.innerWidth  - pad.offsetWidth  - 4, cx - _dx));
-    let y = Math.max(4, Math.min(window.innerHeight - pad.offsetHeight - 4, cy - _dy));
-    pad.style.left = x + 'px'; pad.style.top = y + 'px';
-  }
-  function _end(){ if (!_drag) return; _drag = false; localStorage.setItem('noa_dpad_pos', JSON.stringify({ left: pad.style.left, top: pad.style.top })); }
-  grip.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; _start(t.clientX, t.clientY); }, { passive:false });
-  grip.addEventListener('touchmove',  e => { e.preventDefault(); const t = e.touches[0]; _move(t.clientX, t.clientY); }, { passive:false });
-  grip.addEventListener('touchend', _end, { passive:true });
-  grip.addEventListener('mousedown', e => _start(e.clientX, e.clientY));
-  document.addEventListener('mousemove', e => _move(e.clientX, e.clientY));
-  document.addEventListener('mouseup', _end);
-
-  // 保存位置を復元
-  try {
-    const pos = JSON.parse(localStorage.getItem('noa_dpad_pos') || 'null');
-    if (pos && pos.left && pos.top) { pad.style.right = 'auto'; pad.style.bottom = 'auto'; pad.style.left = pos.left; pad.style.top = pos.top; }
-  } catch {}
 })();
 
 // ── KEYBOARD SHORTCUTS ──
